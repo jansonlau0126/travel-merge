@@ -6,6 +6,8 @@
    P3: fly-to-customer submit + bubble ready check + reward pop
    P4: collapsed detail strip; gen/boost floating dock
    P5: glossy CSS tiles + original SVG vehicle/customer assets
+   P6: four-band vertical ratios
+   + Multi-generator + order pacing (easy/mid/hard + timed bonus)
    ============================================================ */
 const CONFIG = {
   COLS: 7,
@@ -15,11 +17,12 @@ const CONFIG = {
   ENERGY_REGEN_MS: 120000,
   GENERATOR_COST: 1,
   BOOST_COST: 2,
-  LV2_SPAWN_CHANCE: 0.18,
-  BOOST_LV3_CHANCE: 0.12,
   ORDER_SLOTS: 4,
   START_ITEMS: [{ level: 1 }, { level: 1 }, { level: 1 }, { level: 2 }],
   FLY_MS: 480,
+  BONUS_DURATION_MS: 180000,
+  BONUS_MULT: 1.5,
+  ALMOST_THRESHOLD: 0.6,
 };
 
 const CUSTOMER_ASSETS = [
@@ -53,9 +56,64 @@ const LANDMARKS = [
   { id: "eiffel", name: "埃菲爾鐵塔", emoji: "🗼", cost: 1100 },
 ];
 
+/** Multi-generator defs — board tiles + dock; unlock by landmark */
+const GENERATORS = [
+  {
+    id: "parts",
+    name: "零件堆",
+    icon: "assets/generator.svg",
+    unlockLandmark: 0,
+    boardSlot: 49, // row7 col0
+    spawnTable: [
+      [1, 72],
+      [2, 28],
+    ],
+    boostTable: [
+      [2, 68],
+      [3, 32],
+    ],
+  },
+  {
+    id: "garage",
+    name: "修車鋪",
+    icon: "assets/generator_garage.svg",
+    unlockLandmark: 0, // 開局就有（同零件堆唔同掉落表）
+    boardSlot: 50, // row7 col1
+    spawnTable: [
+      [2, 48],
+      [3, 36],
+      [4, 16],
+    ],
+    boostTable: [
+      [3, 48],
+      [4, 36],
+      [5, 16],
+    ],
+  },
+  {
+    id: "luggage",
+    name: "行李倉",
+    icon: "assets/generator_luggage.svg",
+    unlockLandmark: 3, // 大笨鐘
+    boardSlot: 51, // row7 col2
+    spawnTable: [
+      [4, 42],
+      [5, 36],
+      [6, 22],
+    ],
+    boostTable: [
+      [5, 42],
+      [6, 36],
+      [7, 22],
+    ],
+  },
+];
+
 const ORDER_POOL = [
+  // Home — easy session-completable; mid/hard overlap on Lv2–4
   { id: "o_paper", title: "送報紙哥出門", needs: [{ level: 1, count: 2 }], difficulty: "easy", reward: 8, poolFrom: 0 },
   { id: "o_market", title: "街坊買菜", needs: [{ level: 2, count: 1 }], difficulty: "easy", reward: 10, poolFrom: 0 },
+  { id: "o_errand", title: "街口幫襯", needs: [{ level: 1, count: 1 }, { level: 2, count: 1 }], difficulty: "easy", reward: 12, poolFrom: 0 },
   { id: "o_school", title: "學生返學", needs: [{ level: 2, count: 2 }], difficulty: "mid", reward: 18, poolFrom: 0 },
   { id: "o_delivery", title: "外賣仔趕單", needs: [{ level: 3, count: 1 }], difficulty: "mid", reward: 22, poolFrom: 0 },
   { id: "o_patrol", title: "夜班巡邏", needs: [{ level: 4, count: 1 }], difficulty: "mid", reward: 28, poolFrom: 0 },
@@ -63,26 +121,33 @@ const ORDER_POOL = [
 
   { id: "o_torii_easy1", title: "神社外圍散步", needs: [{ level: 2, count: 2 }], difficulty: "easy", reward: 14, poolFrom: 1 },
   { id: "o_torii_easy2", title: "京都短途", needs: [{ level: 3, count: 1 }], difficulty: "easy", reward: 16, poolFrom: 1 },
+  { id: "o_torii_easy3", title: "鳥居腳下接客", needs: [{ level: 2, count: 1 }, { level: 3, count: 1 }], difficulty: "easy", reward: 18, poolFrom: 1 },
   { id: "o_torii_mid1", title: "鳥居打卡團", needs: [{ level: 4, count: 1 }], difficulty: "mid", reward: 32, poolFrom: 1 },
   { id: "o_torii_mid2", title: "載遊客去參拜", needs: [{ level: 5, count: 1 }], difficulty: "mid", reward: 40, poolFrom: 1 },
+  { id: "o_torii_mid3", title: "電單車接駁團", needs: [{ level: 4, count: 1 }, { level: 3, count: 1 }], difficulty: "mid", reward: 36, poolFrom: 1 },
   { id: "o_torii_hard", title: "全家賞櫻出遊", needs: [{ level: 6, count: 1 }], difficulty: "hard", reward: 70, poolFrom: 1 },
 
   { id: "o_pisa_easy", title: "斜塔廣場散步", needs: [{ level: 3, count: 2 }], difficulty: "easy", reward: 20, poolFrom: 2 },
+  { id: "o_pisa_easy2", title: "托斯卡尼短程", needs: [{ level: 4, count: 1 }], difficulty: "easy", reward: 24, poolFrom: 2 },
   { id: "o_pisa_mid1", title: "義大利公路遊", needs: [{ level: 5, count: 1 }], difficulty: "mid", reward: 45, poolFrom: 2 },
   { id: "o_pisa_mid2", title: "雙車接團", needs: [{ level: 5, count: 2 }], difficulty: "mid", reward: 55, poolFrom: 2 },
+  { id: "o_pisa_mid3", title: "電單車+私家車", needs: [{ level: 4, count: 1 }, { level: 5, count: 1 }], difficulty: "mid", reward: 50, poolFrom: 2 },
   { id: "o_pisa_hard", title: "廂型車載全班同學", needs: [{ level: 6, count: 1 }], difficulty: "hard", reward: 85, poolFrom: 2 },
 
   { id: "o_london_easy", title: "泰晤士河岸短程", needs: [{ level: 5, count: 1 }], difficulty: "easy", reward: 30, poolFrom: 3 },
+  { id: "o_london_easy2", title: "城區接駁", needs: [{ level: 4, count: 2 }], difficulty: "easy", reward: 28, poolFrom: 3 },
   { id: "o_london_mid1", title: "倫敦城際巴士", needs: [{ level: 7, count: 1 }], difficulty: "mid", reward: 70, poolFrom: 3 },
   { id: "o_london_mid2", title: "廂型車 + 電單車接駁", needs: [{ level: 6, count: 1 }, { level: 4, count: 1 }], difficulty: "mid", reward: 65, poolFrom: 3 },
   { id: "o_london_hard", title: "乘列車睇大笨鐘", needs: [{ level: 8, count: 1 }], difficulty: "hard", reward: 110, poolFrom: 3 },
 
   { id: "o_lib_easy", title: "紐約港短程", needs: [{ level: 6, count: 1 }], difficulty: "easy", reward: 40, poolFrom: 4 },
+  { id: "o_lib_easy2", title: "曼哈頓接客", needs: [{ level: 5, count: 2 }], difficulty: "easy", reward: 42, poolFrom: 4 },
   { id: "o_lib_mid", title: "跨區長途", needs: [{ level: 7, count: 1 }], difficulty: "mid", reward: 80, poolFrom: 4 },
   { id: "o_lib_hard1", title: "列車直達港口", needs: [{ level: 8, count: 1 }], difficulty: "mid", reward: 100, poolFrom: 4 },
   { id: "o_lib_hard2", title: "渡輪睇女神", needs: [{ level: 9, count: 1 }], difficulty: "hard", reward: 140, poolFrom: 4 },
 
   { id: "o_eiffel_easy", title: "塞納河畔接駁", needs: [{ level: 7, count: 1 }], difficulty: "easy", reward: 50, poolFrom: 5 },
+  { id: "o_eiffel_easy2", title: "鐵塔腳下短程", needs: [{ level: 6, count: 2 }], difficulty: "easy", reward: 52, poolFrom: 5 },
   { id: "o_eiffel_mid", title: "巴黎城際列車", needs: [{ level: 8, count: 1 }], difficulty: "mid", reward: 95, poolFrom: 5 },
   { id: "o_eiffel_hard", title: "渡輪再到市區", needs: [{ level: 9, count: 1 }], difficulty: "mid", reward: 120, poolFrom: 5 },
   {
@@ -101,7 +166,7 @@ const state = {
   travel: 0,
   gems: 0,
   unlockedLandmark: 0,
-  board: /** @type {(null|{ level: number, uid: number })[]} */ ([]),
+  board: /** @type {(null|{ level?: number, genId?: string, uid: number })[]} */ ([]),
   orders: /** @type {any[]} */ ([]),
   selectedIndex: null,
   won: false,
@@ -111,10 +176,30 @@ const state = {
   regenElapsedMs: 0,
   lastTick: Date.now(),
   claiming: false,
+  /** Timed bonus on one order */
+  bonusOrderInst: null,
+  bonusEndsAt: 0,
+  placedGenerators: /** @type {Set<string>} */ (new Set()),
 };
 
 function vehicle(level) {
   return CHAIN[level - 1];
+}
+
+function generatorById(id) {
+  return GENERATORS.find((g) => g.id === id);
+}
+
+function unlockedGenerators() {
+  return GENERATORS.filter((g) => g.unlockLandmark <= state.unlockedLandmark);
+}
+
+function isGeneratorCell(cell) {
+  return !!(cell && cell.genId);
+}
+
+function isItemCell(cell) {
+  return !!(cell && cell.level && !cell.genId);
 }
 
 function showToast(msg) {
@@ -128,9 +213,9 @@ function showToast(msg) {
   }, 2200);
 }
 
-function showRewardPop(reward) {
+function showRewardPop(reward, bonus) {
   const el = document.getElementById("reward-pop");
-  el.textContent = `✈️ +${reward} 旅費！`;
+  el.textContent = bonus ? `✈️ +${reward} 旅費！限時加成！` : `✈️ +${reward} 旅費！`;
   el.hidden = false;
   el.classList.add("show");
   clearTimeout(showRewardPop._t);
@@ -153,7 +238,7 @@ function emptyCells() {
 function countByLevel() {
   const counts = {};
   for (const cell of state.board) {
-    if (!cell) continue;
+    if (!isItemCell(cell)) continue;
     counts[cell.level] = (counts[cell.level] || 0) + 1;
   }
   return counts;
@@ -162,6 +247,18 @@ function countByLevel() {
 function canFulfill(needs) {
   const counts = countByLevel();
   return needs.every((n) => (counts[n.level] || 0) >= n.count);
+}
+
+/** 0–1 progress toward fulfilling needs */
+function orderProgress(needs) {
+  const counts = countByLevel();
+  let needTotal = 0;
+  let have = 0;
+  for (const n of needs) {
+    needTotal += n.count;
+    have += Math.min(n.count, counts[n.level] || 0);
+  }
+  return needTotal ? have / needTotal : 0;
 }
 
 /** Levels currently needed by any active order (for green checkmarks). */
@@ -185,6 +282,34 @@ function placeItem(level, preferIndex) {
   return idx;
 }
 
+function placeGeneratorOnBoard(gen) {
+  if (state.placedGenerators.has(gen.id)) return;
+  let slot = gen.boardSlot;
+  // If slot occupied by item, move item elsewhere
+  if (state.board[slot] && isItemCell(state.board[slot])) {
+    const item = state.board[slot];
+    state.board[slot] = null;
+    const empties = emptyCells().filter((i) => i !== slot);
+    if (empties.length) {
+      const dest = empties[Math.floor(Math.random() * empties.length)];
+      state.board[dest] = item;
+    }
+  } else if (state.board[slot] && isGeneratorCell(state.board[slot])) {
+    // find nearest empty in bottom rows
+    const empties = emptyCells();
+    if (!empties.length) return;
+    slot = empties[empties.length - 1];
+  }
+  state.board[slot] = { genId: gen.id, uid: state.nextUid++ };
+  state.placedGenerators.add(gen.id);
+}
+
+function syncGeneratorsToBoard() {
+  for (const gen of unlockedGenerators()) {
+    placeGeneratorOnBoard(gen);
+  }
+}
+
 function faceForOrder(order) {
   if (order._face) return order._face;
   let h = 0;
@@ -203,30 +328,97 @@ function generatorCost() {
   return state.boostOn ? CONFIG.BOOST_COST : CONFIG.GENERATOR_COST;
 }
 
-function spawnLevel() {
-  if (state.boostOn) {
-    return Math.random() < CONFIG.BOOST_LV3_CHANCE ? 3 : 2;
+function pickFromTable(table) {
+  const total = table.reduce((s, [, w]) => s + w, 0);
+  let r = Math.random() * total;
+  for (const [level, weight] of table) {
+    r -= weight;
+    if (r <= 0) return level;
   }
-  return Math.random() < CONFIG.LV2_SPAWN_CHANCE ? 2 : 1;
+  return table[table.length - 1][0];
+}
+
+function spawnLevelFor(gen) {
+  const table = state.boostOn ? gen.boostTable : gen.spawnTable;
+  return pickFromTable(table);
+}
+
+/** Highest level currently spawnable (for easy-order bias) */
+function maxComfortLevel() {
+  let max = 1;
+  for (const g of unlockedGenerators()) {
+    const table = state.boostOn ? g.boostTable : g.spawnTable;
+    for (const [lv] of table) max = Math.max(max, lv);
+  }
+  // one merge up from max spawn is still "session-reachable"
+  return Math.min(CHAIN.length, max + 1);
 }
 
 /* ============================================================
-   Orders
+   Orders + pacing
    ============================================================ */
 function availablePool() {
   return ORDER_POOL.filter((o) => o.poolFrom <= state.unlockedLandmark);
 }
 
-function pickOrder(difficulty, excludeIds) {
+function orderMaxLevel(order) {
+  return Math.max(...order.needs.map((n) => n.level));
+}
+
+function sharedLevelScore(order, againstOrders) {
+  const needSet = new Set();
+  for (const o of againstOrders) {
+    for (const n of o.needs) needSet.add(n.level);
+  }
+  if (!needSet.size) return 0;
+  let score = 0;
+  for (const n of order.needs) {
+    if (needSet.has(n.level)) score += 2;
+    // adjacent levels also help pacing ("就差少少" conceptual overlap)
+    if (needSet.has(n.level - 1) || needSet.has(n.level + 1)) score += 1;
+  }
+  return score;
+}
+
+function pickOrder(difficulty, excludeIds, preferOverlapWith) {
   const pool = availablePool().filter((o) => o.difficulty === difficulty && !excludeIds.has(o.id));
   let candidates = pool.filter((o) => !state.usedOrderIds.has(o.id));
-  if (!candidates.length) candidates = pool;
+  if (!candidates.length) candidates = pool.slice();
   if (!candidates.length) {
     const any = availablePool().filter((o) => o.difficulty === difficulty);
     if (!any.length) return null;
     return { ...any[Math.floor(Math.random() * any.length)] };
   }
-  return { ...candidates[Math.floor(Math.random() * candidates.length)] };
+
+  const comfort = maxComfortLevel();
+
+  // Score candidates: easy prefers session-reachable; mid/hard prefer overlap
+  const scored = candidates.map((o) => {
+    let score = Math.random() * 0.5;
+    if (difficulty === "easy") {
+      const maxLv = orderMaxLevel(o);
+      if (maxLv <= comfort) score += 5;
+      else if (maxLv <= comfort + 1) score += 2;
+      else score -= 3;
+      // Prefer low total count for "one session"
+      const totalNeed = o.needs.reduce((s, n) => s + n.count, 0);
+      score += Math.max(0, 3 - totalNeed);
+    } else if (difficulty === "mid") {
+      score += sharedLevelScore(o, preferOverlapWith || []) * 1.5;
+      const maxLv = orderMaxLevel(o);
+      if (maxLv <= comfort + 2) score += 1;
+    } else {
+      // hard: long goal — prefer higher levels but still some overlap
+      score += sharedLevelScore(o, preferOverlapWith || []);
+      score += orderMaxLevel(o) * 0.15;
+    }
+    return { o, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  // Soft-max: pick from top 3
+  const top = scored.slice(0, Math.min(3, scored.length));
+  const pick = top[Math.floor(Math.random() * top.length)].o;
+  return { ...pick };
 }
 
 function refillOrders() {
@@ -242,6 +434,7 @@ function refillOrders() {
   const next = [];
   const exclude = new Set();
 
+  // Fill easy first so mid/hard can overlap with it
   for (const diff of ["easy", "mid", "hard"]) {
     const need = target.find((t) => t.difficulty === diff).count;
     let kept = byDiff[diff].filter((o) => o.poolFrom <= state.unlockedLandmark);
@@ -260,7 +453,7 @@ function refillOrders() {
           continue;
         }
       }
-      const picked = pickOrder(diff, exclude);
+      const picked = pickOrder(diff, exclude, next);
       if (!picked) break;
       next.push(picked);
       exclude.add(picked.id);
@@ -268,6 +461,37 @@ function refillOrders() {
     }
   }
   state.orders = next;
+  ensureOrderInstances();
+  maybeAssignTimedBonus();
+}
+
+function maybeAssignTimedBonus() {
+  // Keep existing bonus if still valid and order still present
+  if (state.bonusEndsAt > Date.now() && state.orders.some((o) => o._inst === state.bonusOrderInst)) {
+    return;
+  }
+  state.bonusOrderInst = null;
+  state.bonusEndsAt = 0;
+
+  // Prefer a mid order for short limited-time bonus
+  const mids = state.orders.filter((o) => o.difficulty === "mid" && !o.isFinale);
+  const pool = mids.length ? mids : state.orders.filter((o) => o.difficulty === "easy");
+  if (!pool.length) return;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  state.bonusOrderInst = pick._inst;
+  state.bonusEndsAt = Date.now() + CONFIG.BONUS_DURATION_MS;
+}
+
+function bonusActiveFor(order) {
+  return (
+    order &&
+    order._inst === state.bonusOrderInst &&
+    state.bonusEndsAt > Date.now()
+  );
+}
+
+function bonusTimeLeftMs() {
+  return Math.max(0, state.bonusEndsAt - Date.now());
 }
 
 /** Collect board indices that will be consumed for this order. */
@@ -278,7 +502,7 @@ function pickConsumedIndices(needs) {
     let left = need.count;
     for (let i = 0; i < state.board.length && left > 0; i++) {
       if (used.has(i)) continue;
-      if (state.board[i] && state.board[i].level === need.level) {
+      if (isItemCell(state.board[i]) && state.board[i].level === need.level) {
         indices.push(i);
         used.add(i);
         left--;
@@ -290,7 +514,6 @@ function pickConsumedIndices(needs) {
 
 /**
  * P3: animate items flying from board cells into a customer bubble.
- * Returns a Promise that resolves when animation finishes.
  */
 function animateFlyToCustomer(boardIndices, customerEl) {
   return new Promise((resolve) => {
@@ -306,7 +529,7 @@ function animateFlyToCustomer(boardIndices, customerEl) {
       const cellEl = document.querySelector(`.cell[data-index="${idx}"] .item`);
       if (!cellEl) continue;
       const rect = cellEl.getBoundingClientRect();
-      const level = state.board[idx] ? state.board[idx].level : 1;
+      const level = state.board[idx] && state.board[idx].level ? state.board[idx].level : 1;
       const v = vehicle(level);
 
       const flyer = document.createElement("div");
@@ -319,7 +542,6 @@ function animateFlyToCustomer(boardIndices, customerEl) {
       layer.appendChild(flyer);
       flyers.push({ flyer, tx, ty, sx: rect.left, sy: rect.top });
 
-      // Hide source item during flight
       cellEl.style.opacity = "0";
     }
 
@@ -328,7 +550,6 @@ function animateFlyToCustomer(boardIndices, customerEl) {
       return;
     }
 
-    // Force layout then animate
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         for (const f of flyers) {
@@ -365,8 +586,8 @@ async function claimOrder(instKey) {
   state.claiming = true;
   const consumed = pickConsumedIndices(order.needs);
   const customerEl = document.querySelector(`.customer[data-inst="${instKey}"]`);
+  const hadBonus = bonusActiveFor(order);
 
-  // Flash bubble check before fly
   if (customerEl) {
     customerEl.classList.add("ready");
   }
@@ -375,21 +596,26 @@ async function claimOrder(instKey) {
     await animateFlyToCustomer(consumed, customerEl);
   }
 
-  // Clear consumed board items
   for (const i of consumed) {
     state.board[i] = null;
   }
 
-  state.travel += order.reward;
+  let reward = order.reward;
+  if (hadBonus) {
+    reward = Math.round(reward * CONFIG.BONUS_MULT);
+    state.bonusOrderInst = null;
+    state.bonusEndsAt = 0;
+  }
+
+  state.travel += reward;
   state.usedOrderIds.add(order.id);
-  showToast(`訂單完成！+${order.reward} 旅費 ✈️`);
-  showRewardPop(order.reward);
+  showToast(hadBonus ? `限時加成完成！+${reward} 旅費 ✈️` : `訂單完成！+${reward} 旅費 ✈️`);
+  showRewardPop(reward, hadBonus);
 
   const wasFinale = order.isFinale;
   state.orders.splice(oi, 1);
   checkLandmarkUnlocks();
   refillOrders();
-  ensureOrderInstances();
 
   if (wasFinale && state.unlockedLandmark >= 5) {
     state.won = true;
@@ -416,6 +642,13 @@ function checkLandmarkUnlocks() {
     changed = true;
     const lm = LANDMARKS[state.unlockedLandmark];
     showToast(`護照蓋章！${lm.emoji} ${lm.name}`);
+    // Unlock new generators
+    for (const gen of GENERATORS) {
+      if (gen.unlockLandmark === state.unlockedLandmark) {
+        placeGeneratorOnBoard(gen);
+        showToast(`解鎖生產器：${gen.name}！`);
+      }
+    }
   }
   if (changed) refillOrders();
 }
@@ -427,14 +660,16 @@ function tryMerge(fromIdx, toIdx) {
   if (fromIdx === toIdx) return false;
   const a = state.board[fromIdx];
   const b = state.board[toIdx];
+  if (isGeneratorCell(a) || isGeneratorCell(b)) return false;
   if (!a || !b) {
-    if (a && !b) {
+    if (isItemCell(a) && !b) {
       state.board[toIdx] = a;
       state.board[fromIdx] = null;
       return true;
     }
     return false;
   }
+  if (!isItemCell(a) || !isItemCell(b)) return false;
   if (a.level !== b.level) return false;
   if (a.level >= CHAIN.length) {
     showToast("已經係最高級客機喇！");
@@ -448,7 +683,14 @@ function tryMerge(fromIdx, toIdx) {
   return true;
 }
 
-function tapGenerator() {
+function tapGenerator(genId) {
+  const gen = generatorById(genId);
+  if (!gen) return;
+  if (gen.unlockLandmark > state.unlockedLandmark) {
+    const lm = LANDMARKS[gen.unlockLandmark];
+    showToast(`解鎖 ${lm.name} 先開到${gen.name}`);
+    return;
+  }
   const cost = generatorCost();
   if (state.energy < cost) {
     showToast(state.boostOn ? "渦輪要 2⚡！能量唔夠" : "能量唔夠！等再生或者撳 ⊕");
@@ -459,30 +701,19 @@ function tapGenerator() {
     return;
   }
   state.energy -= cost;
-  const level = spawnLevel();
+  const level = spawnLevelFor(gen);
   placeItem(level);
   const v = vehicle(level);
-  if (state.boostOn) showToast(`渦輪產出 ${v.emoji} ${v.name}`);
+  if (state.boostOn) showToast(`${gen.name}（渦輪）→ ${v.emoji} ${v.name}`);
+  else showToast(`${gen.name} → ${v.emoji} ${v.name}`);
   render();
 }
 
 function toggleBoost() {
   state.boostOn = !state.boostOn;
-  const btn = document.getElementById("btn-boost");
-  btn.setAttribute("aria-pressed", state.boostOn ? "true" : "false");
-  document.getElementById("boost-hint").textContent = state.boostOn ? "x2" : "x1";
-  updateGenCostBadge();
+  renderDock();
   renderResources();
-  showToast(state.boostOn ? "🚀 渦輪開啟！零件堆耗 2⚡" : "渦輪關閉");
-}
-
-function updateGenCostBadge() {
-  const badge = document.getElementById("gen-cost-badge");
-  if (state.boostOn) {
-    badge.textContent = "⚡2";
-  } else {
-    badge.textContent = "⚡1";
-  }
+  showToast(state.boostOn ? "🚀 渦輪開啟！生產器耗 2⚡" : "渦輪關閉");
 }
 
 /* ============================================================
@@ -503,17 +734,26 @@ function tickEnergy() {
   if (state.energy >= CONFIG.ENERGY_MAX) {
     state.regenElapsedMs = 0;
     updateEnergyTimerUI();
-    return;
+  } else {
+    state.regenElapsedMs += dt;
+    while (state.regenElapsedMs >= CONFIG.ENERGY_REGEN_MS && state.energy < CONFIG.ENERGY_MAX) {
+      state.regenElapsedMs -= CONFIG.ENERGY_REGEN_MS;
+      state.energy += 1;
+    }
+    if (state.energy >= CONFIG.ENERGY_MAX) state.regenElapsedMs = 0;
+    updateEnergyTimerUI();
+    renderResources();
   }
 
-  state.regenElapsedMs += dt;
-  while (state.regenElapsedMs >= CONFIG.ENERGY_REGEN_MS && state.energy < CONFIG.ENERGY_MAX) {
-    state.regenElapsedMs -= CONFIG.ENERGY_REGEN_MS;
-    state.energy += 1;
+  // Expire / refresh timed bonus UI
+  if (state.bonusOrderInst && state.bonusEndsAt <= now) {
+    state.bonusOrderInst = null;
+    state.bonusEndsAt = 0;
+    maybeAssignTimedBonus();
+    renderOrders();
+  } else if (state.bonusOrderInst) {
+    updateBonusTimers();
   }
-  if (state.energy >= CONFIG.ENERGY_MAX) state.regenElapsedMs = 0;
-  updateEnergyTimerUI();
-  renderResources();
 }
 
 function updateEnergyTimerUI() {
@@ -526,6 +766,13 @@ function updateEnergyTimerUI() {
     el.textContent = formatRegen(left);
     el.classList.remove("is-full");
   }
+}
+
+function updateBonusTimers() {
+  const left = bonusTimeLeftMs();
+  document.querySelectorAll(".bubble-bonus-timer").forEach((el) => {
+    el.textContent = formatRegen(left);
+  });
 }
 
 /* ============================================================
@@ -549,7 +796,58 @@ function renderLandmarks() {
   });
 }
 
-/** P0 + P3: customers with bubbles; green check when completable */
+function renderDock() {
+  const dock = document.getElementById("board-dock");
+  const cost = generatorCost();
+  const gens = unlockedGenerators();
+  let html = "";
+  for (const gen of gens) {
+    const disabled = state.energy < cost ? "disabled" : "";
+    html += `
+      <button type="button" class="dock-btn gen gen-${gen.id}" data-gen="${gen.id}" title="${gen.name}" ${disabled}>
+        <img class="dock-ico" src="${gen.icon}" alt="" width="36" height="36" />
+        <span class="cost-pill">⚡${cost}</span>
+        <span class="dock-label">${gen.name}</span>
+      </button>
+    `;
+  }
+  // Locked preview for next generator
+  const nextLocked = GENERATORS.find((g) => g.unlockLandmark > state.unlockedLandmark);
+  if (nextLocked) {
+    const lm = LANDMARKS[nextLocked.unlockLandmark];
+    html += `
+      <button type="button" class="dock-btn gen locked" data-gen-locked="${nextLocked.id}" title="解鎖 ${lm.name} 後開${nextLocked.name}">
+        <img class="dock-ico" src="${nextLocked.icon}" alt="" width="36" height="36" />
+        <span class="cost-pill lock-pill">🔒</span>
+        <span class="dock-label">${nextLocked.name}</span>
+      </button>
+    `;
+  }
+  html += `
+    <button type="button" id="btn-boost" class="dock-btn boost" aria-pressed="${state.boostOn ? "true" : "false"}" title="渦輪：耗雙倍能量，出更高階">
+      <img class="dock-ico" src="assets/boost.svg" alt="" width="36" height="36" />
+      <span id="boost-hint" class="boost-badge">${state.boostOn ? "x2" : "x1"}</span>
+    </button>
+  `;
+  dock.innerHTML = html;
+
+  dock.querySelectorAll(".dock-btn.gen[data-gen]").forEach((btn) => {
+    btn.addEventListener("click", () => tapGenerator(btn.dataset.gen));
+  });
+  dock.querySelectorAll(".dock-btn.gen.locked").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const g = generatorById(btn.dataset.genLocked);
+      if (g) {
+        const lm = LANDMARKS[g.unlockLandmark];
+        showToast(`解鎖 ${lm.name} 先開到${g.name}`);
+      }
+    });
+  });
+  const boostBtn = document.getElementById("btn-boost");
+  if (boostBtn) boostBtn.addEventListener("click", toggleBoost);
+}
+
+/** P0 + P3: customers with bubbles; green check when completable; almost + timed bonus */
 function renderOrders() {
   ensureOrderInstances();
   const root = document.getElementById("orders");
@@ -559,10 +857,19 @@ function renderOrders() {
 
   for (const order of state.orders) {
     const ready = canFulfill(order.needs);
+    const progress = orderProgress(order.needs);
+    const almost = !ready && progress >= CONFIG.ALMOST_THRESHOLD;
+    const bonus = bonusActiveFor(order);
+
     const cust = document.createElement("div");
-    cust.className = "customer" + (ready ? " ready" : "");
+    cust.className =
+      "customer" + (ready ? " ready" : "") + (almost ? " almost" : "") + (bonus ? " has-bonus" : "");
     cust.dataset.inst = order._inst;
-    cust.title = order.title + (order.isFinale ? " 🏆" : "");
+    cust.title =
+      order.title +
+      (order.isFinale ? " 🏆" : "") +
+      (almost ? " · 就差少少！" : "") +
+      (bonus ? " · 限時加成中" : "");
 
     const face = faceForOrder(order);
 
@@ -578,14 +885,21 @@ function renderOrders() {
       }
     }
 
+    const bonusHtml = bonus
+      ? `<span class="bubble-bonus"><span class="bubble-bonus-timer">${formatRegen(bonusTimeLeftMs())}</span> +${Math.round((CONFIG.BONUS_MULT - 1) * 100)}%</span>`
+      : "";
+    const almostHtml = almost ? `<span class="almost-hint">就差少少</span>` : "";
+
     cust.innerHTML = `
       <span class="customer-diff ${order.difficulty}">${diffLabel[order.difficulty]}</span>
       <div class="bubble">
         <span class="bubble-ready-check" aria-hidden="true">✓</span>
         ${bubbleItems.join("")}
+        ${bonusHtml}
       </div>
       <div class="customer-face"><img src="${face}" alt="" draggable="false" /></div>
-      <div class="customer-reward">✈️${order.reward}</div>
+      <div class="customer-reward">✈️${bonus ? Math.round(order.reward * CONFIG.BONUS_MULT) : order.reward}</div>
+      ${almostHtml}
     `;
 
     cust.addEventListener("click", () => {
@@ -593,14 +907,19 @@ function renderOrders() {
       if (canFulfill(order.needs)) {
         claimOrder(order._inst);
       } else {
-        showToast(`${order.title}：仲差載具`);
+        const pct = Math.round(orderProgress(order.needs) * 100);
+        showToast(
+          almost
+            ? `${order.title}：就差少少（${pct}%）！`
+            : `${order.title}：仲差載具（${pct}%）`
+        );
         state.selectedIndex = null;
         document.querySelectorAll(".cell.selected").forEach((c) => c.classList.remove("selected"));
-        // Orders stay in bubbles — briefly expand detail as hint only
         expandDetail(
           null,
-          `<strong>${order.title}</strong><br/>需要：` +
-            order.needs.map((n) => `${vehicle(n.level).name}×${n.count}`).join("、")
+          `<strong>${order.title}</strong>${bonus ? " · <span style='color:#e65100'>限時加成</span>" : ""}<br/>需要：` +
+            order.needs.map((n) => `${vehicle(n.level).name}×${n.count}`).join("、") +
+            (almost ? `<br/><span style="color:#ef6c00">進度 ${pct}% — 就差少少！</span>` : "")
         );
       }
     });
@@ -620,7 +939,7 @@ function collapseDetail() {
   text.textContent = "點選棋盤物件睇詳情";
 }
 
-function expandDetail(levelOrNull, html) {
+function expandDetail(levelOrNull, html, genIcon) {
   const strip = document.getElementById("detail-strip");
   strip.dataset.expanded = "true";
   const thumb = document.getElementById("detail-thumb");
@@ -632,6 +951,10 @@ function expandDetail(levelOrNull, html) {
     thumb.hidden = false;
     thumb.className = "detail-thumb item lv-" + levelOrNull;
     thumb.innerHTML = `<img src="${v.icon}" alt="${v.name}" />`;
+  } else if (genIcon) {
+    thumb.hidden = false;
+    thumb.className = "detail-thumb gen-thumb";
+    thumb.innerHTML = `<img src="${genIcon}" alt="" />`;
   } else {
     thumb.hidden = true;
     thumb.innerHTML = "";
@@ -643,7 +966,19 @@ function updateDetailFromSelection() {
     collapseDetail();
     return;
   }
-  const item = state.board[state.selectedIndex];
+  const cell = state.board[state.selectedIndex];
+  if (isGeneratorCell(cell)) {
+    const gen = generatorById(cell.genId);
+    const table = state.boostOn ? gen.boostTable : gen.spawnTable;
+    const range = table.map(([lv]) => vehicle(lv).name).join("／");
+    expandDetail(
+      null,
+      `<strong>${gen.name}</strong>（生產器）<br/>消耗 ⚡${generatorCost()} 產出：${range}<br/><span style="color:var(--muted);font-weight:600">撳棋盤上嘅${gen.name}或底部掣產出</span>`,
+      gen.icon
+    );
+    return;
+  }
+  const item = cell;
   const v = vehicle(item.level);
   const next = item.level < CHAIN.length ? vehicle(item.level + 1) : null;
   let html = `<strong>${v.name}</strong>（Lv${item.level}）`;
@@ -666,7 +1001,17 @@ function renderBoard() {
     if (state.selectedIndex === i) cell.classList.add("selected");
 
     const item = state.board[i];
-    if (item) {
+    if (isGeneratorCell(item)) {
+      const gen = generatorById(item.genId);
+      cell.classList.add("has-gen");
+      const el = document.createElement("div");
+      el.className = "item generator-tile gen-" + gen.id;
+      el.dataset.index = String(i);
+      el.dataset.gen = gen.id;
+      el.title = `${gen.name}（撳一下產出）`;
+      el.innerHTML = `<img class="ico" src="${gen.icon}" alt="${gen.name}" draggable="false" /><span class="lv gen-lv">${gen.name}</span>`;
+      cell.appendChild(el);
+    } else if (isItemCell(item)) {
       const v = vehicle(item.level);
       const el = document.createElement("div");
       el.className = "item lv-" + item.level + (needed.has(item.level) ? " needed" : "");
@@ -683,7 +1028,7 @@ function renderBoard() {
 }
 
 function wireBoardEvents(boardEl) {
-  boardEl.querySelectorAll(".item").forEach((el) => {
+  boardEl.querySelectorAll(".item:not(.generator-tile)").forEach((el) => {
     el.addEventListener("dragstart", (e) => {
       const dragFrom = Number(el.dataset.index);
       e.dataTransfer.setData("text/plain", String(dragFrom));
@@ -699,12 +1044,14 @@ function wireBoardEvents(boardEl) {
     const idx = Number(cell.dataset.index);
     cell.addEventListener("dragover", (e) => {
       e.preventDefault();
+      if (isGeneratorCell(state.board[idx])) return;
       cell.classList.add("drag-over");
     });
     cell.addEventListener("dragleave", () => cell.classList.remove("drag-over"));
     cell.addEventListener("drop", (e) => {
       e.preventDefault();
       cell.classList.remove("drag-over");
+      if (isGeneratorCell(state.board[idx])) return;
       const from = Number(e.dataTransfer.getData("text/plain"));
       if (Number.isNaN(from)) return;
       if (tryMerge(from, idx)) {
@@ -716,8 +1063,18 @@ function wireBoardEvents(boardEl) {
 
     cell.addEventListener("click", () => {
       if (state.claiming) return;
-      if (!state.board[idx]) {
-        if (state.selectedIndex != null && state.board[state.selectedIndex]) {
+      const boardCell = state.board[idx];
+
+      // Tap generator on board
+      if (isGeneratorCell(boardCell)) {
+        state.selectedIndex = idx;
+        renderBoard();
+        tapGenerator(boardCell.genId);
+        return;
+      }
+
+      if (!boardCell) {
+        if (state.selectedIndex != null && isItemCell(state.board[state.selectedIndex])) {
           if (tryMerge(state.selectedIndex, idx)) {
             state.selectedIndex = null;
             render();
@@ -763,15 +1120,21 @@ function renderResources() {
   document.getElementById("travel-text").textContent = String(state.travel);
   const gemsEl = document.getElementById("gems-text");
   if (gemsEl) gemsEl.textContent = String(state.gems);
-  const gen = document.getElementById("generator");
-  gen.disabled = state.energy < generatorCost();
-  updateGenCostBadge();
+  // Refresh dock disable state without full rebuild if possible
+  const cost = generatorCost();
+  document.querySelectorAll(".dock-btn.gen[data-gen]").forEach((btn) => {
+    btn.disabled = state.energy < cost;
+    const pill = btn.querySelector(".cost-pill");
+    if (pill && !pill.classList.contains("lock-pill")) pill.textContent = `⚡${cost}`;
+  });
 }
 
 function render() {
+  syncGeneratorsToBoard();
   renderResources();
   updateEnergyTimerUI();
   renderLandmarks();
+  renderDock();
   renderOrders();
   renderBoard();
 }
@@ -779,9 +1142,21 @@ function render() {
 function initBoard() {
   const total = CONFIG.COLS * CONFIG.ROWS;
   state.board = Array(total).fill(null);
+  state.placedGenerators.clear();
+  // Place starting items first (avoid generator slots)
+  const reserved = new Set(GENERATORS.filter((g) => g.unlockLandmark === 0).map((g) => g.boardSlot));
   for (const s of CONFIG.START_ITEMS) {
-    placeItem(s.level);
+    const empties = [];
+    for (let i = 0; i < total; i++) {
+      if (!state.board[i] && !reserved.has(i)) empties.push(i);
+    }
+    if (!empties.length) placeItem(s.level);
+    else {
+      const idx = empties[Math.floor(Math.random() * empties.length)];
+      state.board[idx] = { level: s.level, uid: state.nextUid++ };
+    }
   }
+  syncGeneratorsToBoard();
 }
 
 function init() {
@@ -790,13 +1165,12 @@ function init() {
   ensureOrderInstances();
   render();
 
-  document.getElementById("generator").addEventListener("click", tapGenerator);
-  document.getElementById("btn-boost").addEventListener("click", toggleBoost);
   document.getElementById("btn-energy-debug").addEventListener("click", (e) => {
     e.stopPropagation();
     state.energy = Math.min(CONFIG.ENERGY_MAX, state.energy + 10);
     renderResources();
     updateEnergyTimerUI();
+    renderDock();
     showToast("+10 能量 ⚡");
   });
   document.getElementById("btn-travel-plus").addEventListener("click", (e) => {

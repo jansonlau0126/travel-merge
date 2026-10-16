@@ -49,16 +49,9 @@
     <section class="board-stage">
       <div id="board" class="board" role="grid" aria-label="7×8 合併棋盤"></div>
 
-      <!-- P4: compact sticky controls on board edge -->
-      <div class="board-dock" aria-label="零件堆同渦輪">
-        <button type="button" id="generator" class="dock-btn gen" title="零件堆">
-          <img class="dock-ico" src="assets/generator.svg" alt="" width="36" height="36" />
-          <span id="gen-cost-badge" class="cost-pill">⚡1</span>
-        </button>
-        <button type="button" id="btn-boost" class="dock-btn boost" aria-pressed="false" title="渦輪：耗雙倍能量，出更高階">
-          <img class="dock-ico" src="assets/boost.svg" alt="" width="36" height="36" />
-          <span id="boost-hint" class="boost-badge">x1</span>
-        </button>
+      <!-- P4: generators + boost floating on board edge -->
+      <div class="board-dock" id="board-dock" aria-label="生產器同渦輪">
+        <!-- filled by renderDock() -->
       </div>
     </section>
 
