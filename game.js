@@ -3,6 +3,7 @@
    P0–P6 layout + multi-generator + order pacing + landmark decor
    + Sound (Web Audio beeps) + particle bursts + mute toggle
    + Chapter 1 balance retune (early session rewarding)
+   + Return-session board space governance (~20–25% empty)
    ============================================================ */
 const CONFIG = {
   COLS: 7,
@@ -27,6 +28,12 @@ const CONFIG = {
   ALMOST_THRESHOLD: 0.6,
   /** 交單回饋能量（易／中／難）— 早期唔易斷電 */
   ENERGY_ON_ORDER: { easy: 2, mid: 3, hard: 5 },
+  /** 回場空位治理：非生產器格約 20–25% 空 */
+  TARGET_EMPTY_MIN: 0.2,
+  TARGET_EMPTY_MAX: 0.25,
+  PARK_MAX: 8,
+  SPACE_GOVERN_MAX_MERGES: 12,
+  SPACE_GOVERN_MAX_PARKS: 8,
 };
 
 const CUSTOMER_ASSETS = [
@@ -243,6 +250,10 @@ const state = {
   bonusEndsAt: 0,
   placedGenerators: /** @type {Set<string>} */ (new Set()),
   muted: localStorage.getItem("tm_mute") === "1",
+  /** Overflow parking (off-board) for space governance */
+  parking: /** @type {{ level: number, uid: number }[]} */ ([]),
+  /** Indices currently flashing as merge hints */
+  mergeHints: /** @type {Set<number>} */ (new Set()),
 };
 
 /* ============================================================
@@ -418,6 +429,265 @@ function emptyCells() {
     if (!state.board[i]) out.push(i);
   }
   return out;
+}
+
+/** Non-generator slots (items + empties) — basis for empty ratio */
+function playableSlotCount() {
+  let n = 0;
+  for (let i = 0; i < state.board.length; i++) {
+    if (!isGeneratorCell(state.board[i])) n++;
+  }
+  return n;
+}
+
+function emptyRatio() {
+  const playable = playableSlotCount();
+  if (!playable) return 1;
+  return emptyCells().length / playable;
+}
+
+function targetEmptyFloor() {
+  return Math.max(1, Math.ceil(playableSlotCount() * CONFIG.TARGET_EMPTY_MIN));
+}
+
+function orderDemandByLevel() {
+  const d = {};
+  for (const order of state.orders) {
+    for (const n of order.needs) {
+      d[n.level] = (d[n.level] || 0) + n.count;
+    }
+  }
+  return d;
+}
+
+function neighborIndices(idx) {
+  const c = idx % CONFIG.COLS;
+  const r = Math.floor(idx / CONFIG.COLS);
+  const out = [];
+  if (c > 0) out.push(idx - 1);
+  if (c < CONFIG.COLS - 1) out.push(idx + 1);
+  if (r > 0) out.push(idx - CONFIG.COLS);
+  if (r < CONFIG.ROWS - 1) out.push(idx + CONFIG.COLS);
+  return out;
+}
+
+/** Levels with surplus above active order demand (safe to merge/park). */
+function surplusByLevel() {
+  const counts = countByLevel();
+  const demand = orderDemandByLevel();
+  const surplus = {};
+  for (const [lvStr, count] of Object.entries(counts)) {
+    const lv = Number(lvStr);
+    surplus[lv] = count - (demand[lv] || 0);
+  }
+  return surplus;
+}
+
+/**
+ * Find a soft-merge pair: prefer adjacent + lowest level with surplus >= 2.
+ * Falls back to any same-level pair with surplus.
+ * Returns [fromIdx, toIdx] or null.
+ */
+function findSoftMergePair() {
+  const surplus = surplusByLevel();
+  const byLevel = {};
+  for (let i = 0; i < state.board.length; i++) {
+    const cell = state.board[i];
+    if (!isItemCell(cell)) continue;
+    if (cell.level >= CHAIN.length) continue; // max tier — cannot merge
+    if (!byLevel[cell.level]) byLevel[cell.level] = [];
+    byLevel[cell.level].push(i);
+  }
+  const levels = Object.keys(byLevel)
+    .map(Number)
+    .filter((lv) => (surplus[lv] || 0) >= 2 && byLevel[lv].length >= 2)
+    .sort((a, b) => a - b);
+
+  for (const lv of levels) {
+    const idxs = byLevel[lv];
+    // Prefer adjacent
+    for (const a of idxs) {
+      for (const b of neighborIndices(a)) {
+        if (idxs.includes(b)) return [a, b];
+      }
+    }
+    // Any pair
+    if (idxs.length >= 2) return [idxs[0], idxs[1]];
+  }
+
+  // Last resort: merge any lowest duplicate even if it eats demand (only when desperate)
+  const anyLevels = Object.keys(byLevel)
+    .map(Number)
+    .filter((lv) => byLevel[lv].length >= 2)
+    .sort((a, b) => a - b);
+  for (const lv of anyLevels) {
+    const idxs = byLevel[lv];
+    for (const a of idxs) {
+      for (const b of neighborIndices(a)) {
+        if (idxs.includes(b)) return [a, b];
+      }
+    }
+    if (idxs.length >= 2) return [idxs[0], idxs[1]];
+  }
+  return null;
+}
+
+/** Soft-pack one merge (no toast). Frees one cell. */
+function softAutoMergeOnce() {
+  const pair = findSoftMergePair();
+  if (!pair) return false;
+  const [fromIdx, toIdx] = pair;
+  const a = state.board[fromIdx];
+  if (!isItemCell(a) || a.level >= CHAIN.length) return false;
+  state.board[fromIdx] = null;
+  state.board[toIdx] = { level: a.level + 1, uid: state.nextUid++ };
+  return true;
+}
+
+/** Park one surplus low-level item off-board. */
+function parkOverflowItem() {
+  if (state.parking.length >= CONFIG.PARK_MAX) return false;
+  const surplus = surplusByLevel();
+  const candidates = [];
+  for (let i = 0; i < state.board.length; i++) {
+    const cell = state.board[i];
+    if (!isItemCell(cell)) continue;
+    const extra = surplus[cell.level] || 0;
+    if (extra >= 1) candidates.push({ i, level: cell.level, extra });
+  }
+  if (!candidates.length) {
+    // Desperate: park lowest level item
+    for (let i = 0; i < state.board.length; i++) {
+      const cell = state.board[i];
+      if (!isItemCell(cell)) continue;
+      candidates.push({ i, level: cell.level, extra: 0 });
+    }
+  }
+  if (!candidates.length) return false;
+  candidates.sort((a, b) => a.level - b.level || b.extra - a.extra);
+  const pick = candidates[0];
+  const item = state.board[pick.i];
+  state.board[pick.i] = null;
+  state.parking.push({ level: item.level, uid: item.uid });
+  return true;
+}
+
+function clearMergeHints() {
+  state.mergeHints.clear();
+}
+
+function collectMergeHintIndices() {
+  const hints = new Set();
+  const byLevel = {};
+  for (let i = 0; i < state.board.length; i++) {
+    const cell = state.board[i];
+    if (!isItemCell(cell) || cell.level >= CHAIN.length) continue;
+    if (!byLevel[cell.level]) byLevel[cell.level] = [];
+    byLevel[cell.level].push(i);
+  }
+  for (const idxs of Object.values(byLevel)) {
+    if (idxs.length < 2) continue;
+    // Mark all that have an adjacent twin; else mark first two
+    let markedAdj = false;
+    for (const a of idxs) {
+      for (const b of neighborIndices(a)) {
+        if (idxs.includes(b)) {
+          hints.add(a);
+          hints.add(b);
+          markedAdj = true;
+        }
+      }
+    }
+    if (!markedAdj) {
+      hints.add(idxs[0]);
+      hints.add(idxs[1]);
+    }
+  }
+  return hints;
+}
+
+function applyMergeHints() {
+  state.mergeHints = collectMergeHintIndices();
+}
+
+/**
+ * Return-session / energy-refill board space governance.
+ * Target ~20–25% empty among playable (non-generator) cells.
+ * Soft-packs via auto-merge + parking overflow. NEVER auto-taps generators.
+ */
+function ensureBoardSpace(opts = {}) {
+  const reason = opts.reason || "session";
+  const announce = opts.announce !== false;
+  clearMergeHints();
+
+  const beforeEmpty = emptyCells().length;
+  let merges = 0;
+  let parks = 0;
+  const floor = targetEmptyFloor();
+
+  while (emptyCells().length < floor && merges < CONFIG.SPACE_GOVERN_MAX_MERGES) {
+    if (!softAutoMergeOnce()) break;
+    merges++;
+  }
+  while (emptyCells().length < floor && parks < CONFIG.SPACE_GOVERN_MAX_PARKS) {
+    if (!parkOverflowItem()) break;
+    parks++;
+  }
+
+  const empty = emptyCells().length;
+  const ratio = emptyRatio();
+  const changed = merges > 0 || parks > 0 || empty !== beforeEmpty;
+  const full = empty === 0;
+  const cramped = ratio < CONFIG.TARGET_EMPTY_MIN;
+
+  if (full) {
+    applyMergeHints();
+    if (announce) {
+      showToast("棋盤塞爆啦！合併／交單騰位，或者撳📦停車場清位。");
+    }
+  } else if (cramped) {
+    applyMergeHints();
+    if (announce) {
+      showToast("位置有啲逼——閃光棋子可以合併清位呀！");
+    }
+  } else if (announce && (merges || parks) && (reason === "return" || reason === "refill")) {
+    const bits = [];
+    if (merges) bits.push(`合併${merges}次`);
+    if (parks) bits.push(`暫存${parks}件`);
+    showToast(`回場整理：${bits.join("、")}，留約${Math.round(ratio * 100)}% 空位畀你玩`);
+  }
+
+  return { merges, parks, empty, ratio, changed, full, cramped };
+}
+
+/** Unpark one item onto the board if there is space. */
+function unparkOne() {
+  if (!state.parking.length) {
+    showToast("停車場係空嘅");
+    return false;
+  }
+  if (!emptyCells().length) {
+    showToast("棋盤仲係滿嘅——先合併或者交單啦！");
+    applyMergeHints();
+    return false;
+  }
+  // Keep ~20% empty: only unpark if we stay above min after placing
+  if (emptyCells().length <= targetEmptyFloor()) {
+    showToast("空位預咗畀生產器用——合併多啲先攞返停車場嘢");
+    return false;
+  }
+  const item = state.parking.pop();
+  const idx = placeItem(item.level);
+  if (idx < 0) {
+    state.parking.push(item);
+    showToast("棋盤塞爆啦！合併／交單騰位，或者撳📦停車場清位。");
+    return false;
+  }
+  // restore uid if possible
+  state.board[idx].uid = item.uid || state.board[idx].uid;
+  const v = vehicle(item.level);
+  showToast(`由停車場攞返 ${v.emoji} ${v.name}`);
+  return true;
 }
 
 function countByLevel() {
@@ -1002,8 +1272,15 @@ function tapGenerator(genId) {
     return;
   }
   if (!emptyCells().length) {
-    showToast("棋盤滿晒！先合併或者交訂單騰位。");
-    return;
+    ensureBoardSpace({ reason: "spawn", announce: false });
+    if (!emptyCells().length) {
+      applyMergeHints();
+      showToast("棋盤塞爆啦！合併／交單騰位，或者撳📦停車場清位。");
+      renderBoard();
+      renderDock();
+      return;
+    }
+    // Soft-pack freed a slot — continue spawn without flooding extra gens
   }
   state.energy -= cost;
   const level = spawnLevelFor(gen);
@@ -1041,13 +1318,27 @@ function tickEnergy() {
     updateEnergyTimerUI();
   } else {
     state.regenElapsedMs += dt;
+    let gained = 0;
     while (state.regenElapsedMs >= CONFIG.ENERGY_REGEN_MS && state.energy < CONFIG.ENERGY_MAX) {
       state.regenElapsedMs -= CONFIG.ENERGY_REGEN_MS;
       state.energy += 1;
+      gained += 1;
     }
     if (state.energy >= CONFIG.ENERGY_MAX) state.regenElapsedMs = 0;
     updateEnergyTimerUI();
     renderResources();
+    // Energy refill ≈ return-session: keep ~20–25% empty, never auto-flood gens
+    if (gained > 0) {
+      const cramped = emptyRatio() < CONFIG.TARGET_EMPTY_MIN;
+      const result = ensureBoardSpace({
+        reason: "refill",
+        announce: cramped || emptyCells().length === 0,
+      });
+      if (result.changed || result.cramped || result.full) {
+        renderBoard();
+        renderDock();
+      }
+    }
   }
 
   // Expire / refresh timed bonus UI
@@ -1152,6 +1443,14 @@ function renderDock() {
       </button>
     `;
   }
+  const parkCount = state.parking.length;
+  html += `
+    <button type="button" id="btn-park" class="dock-btn park${parkCount ? " has-items" : ""}" title="停車場（溢出暫存）" aria-label="停車場">
+      <span class="dock-ico park-ico" aria-hidden="true">📦</span>
+      <span class="park-badge">${parkCount}</span>
+      <span class="dock-label">停車場</span>
+    </button>
+  `;
   html += `
     <button type="button" id="btn-boost" class="dock-btn boost" aria-pressed="${state.boostOn ? "true" : "false"}" title="渦輪：耗雙倍能量，出更高階">
       <img class="dock-ico" src="assets/boost.svg" alt="" width="36" height="36" />
@@ -1172,6 +1471,16 @@ function renderDock() {
       }
     });
   });
+  const parkBtn = document.getElementById("btn-park");
+  if (parkBtn) {
+    parkBtn.addEventListener("click", () => {
+      if (unparkOne()) render();
+      else {
+        renderBoard();
+        renderDock();
+      }
+    });
+  }
   const boostBtn = document.getElementById("btn-boost");
   if (boostBtn) boostBtn.addEventListener("click", toggleBoost);
 }
@@ -1343,7 +1652,11 @@ function renderBoard() {
     } else if (isItemCell(item)) {
       const v = vehicle(item.level);
       const el = document.createElement("div");
-      el.className = "item lv-" + item.level + (needed.has(item.level) ? " needed" : "");
+      el.className =
+        "item lv-" +
+        item.level +
+        (needed.has(item.level) ? " needed" : "") +
+        (state.mergeHints.has(i) ? " merge-hint" : "");
       el.draggable = true;
       el.dataset.index = String(i);
       el.title = `${v.name} (Lv${item.level})`;
@@ -1570,9 +1883,11 @@ function init() {
   document.getElementById("btn-energy-debug").addEventListener("click", (e) => {
     e.stopPropagation();
     state.energy = Math.min(CONFIG.ENERGY_MAX, state.energy + 10);
+    const result = ensureBoardSpace({ reason: "refill", announce: emptyRatio() < CONFIG.TARGET_EMPTY_MIN });
     renderResources();
     updateEnergyTimerUI();
     renderDock();
+    if (result.changed) renderBoard();
     showToast("+10 能量 ⚡");
   });
   document.getElementById("btn-travel-plus").addEventListener("click", (e) => {
@@ -1621,6 +1936,18 @@ function init() {
       if (e.target === decorModal) closeDecorateModal();
     });
   }
+
+  // Return-session: on load keep ~20–25% empty (soft pack / park; never flood gens)
+  {
+    const result = ensureBoardSpace({ reason: "return", announce: false });
+    if (result.changed || result.cramped || result.full) render();
+  }
+  // visibility return ≈ 回場
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    const result = ensureBoardSpace({ reason: "return", announce: true });
+    if (result.changed || result.cramped || result.full) render();
+  });
 
   setInterval(tickEnergy, 250);
 }

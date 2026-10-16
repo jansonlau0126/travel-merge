@@ -1159,6 +1159,58 @@ body {
   transform: scale(0.35);
 }
 
+/* ========== Board space governance: merge hints + parking ========== */
+.item.merge-hint {
+  box-shadow:
+    0 0 0 2.5px #66bb6a,
+    0 0 14px rgba(76, 175, 80, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+  animation: merge-hint-pulse 1.15s ease-in-out infinite;
+  z-index: 2;
+}
+
+@keyframes merge-hint-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.05); filter: brightness(1.08); }
+}
+
+.dock-btn.park {
+  background: linear-gradient(160deg, #bcaaa4, #8d6e63 55%, #6d4c41);
+  flex-direction: column;
+}
+
+.dock-btn.park.has-items {
+  background: linear-gradient(160deg, #ffe082, #ffb74d 55%, #f57c00);
+}
+
+.dock-btn.park .park-ico {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.dock-btn.park .park-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #d32f2f;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.dock-btn.park:not(.has-items) .park-badge {
+  background: #78909c;
+}
+
 /* Toast / Reward / Win */
 .toast {
   position: fixed;
