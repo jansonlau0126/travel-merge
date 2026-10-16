@@ -1144,3 +1144,209 @@ body {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.04); }
 }
+
+/* ========== Landmark decoration meta (before→after scene) ========== */
+.landmark-scene {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 22%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.scene-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  transition: opacity 0.55s ease;
+}
+
+.scene-before {
+  opacity: 1;
+  filter: grayscale(0.85) brightness(0.85);
+}
+
+.scene-after {
+  opacity: 0;
+}
+
+.landmark-scene[data-stage="1"] .scene-before { opacity: 1; }
+.landmark-scene[data-stage="1"] .scene-after { opacity: 0; }
+
+.landmark-scene[data-stage="2"] .scene-before { opacity: 0; }
+.landmark-scene[data-stage="2"] .scene-after { opacity: 1; filter: none; }
+
+.landmark-scene.flash-upgrade .scene-glow {
+  animation: scene-flash 0.7s ease;
+}
+
+.scene-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 70%, rgba(255, 220, 120, 0.55), transparent 65%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes scene-flash {
+  0% { opacity: 0; }
+  35% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.btn-decorate {
+  position: absolute;
+  top: calc(7.5% + 2px);
+  right: 8px;
+  z-index: 7;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1.5px solid #fff;
+  background: linear-gradient(180deg, #ffd54f, #ff9800);
+  color: #5a3200;
+  font-size: 0.62rem;
+  font-weight: 900;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.btn-decorate:active {
+  transform: scale(0.95);
+}
+
+.landmarks-slim {
+  pointer-events: none;
+}
+.landmarks-slim .landmark {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.landmark.can-unlock .stamp,
+.landmark.can-upgrade .stamp {
+  animation: stamp-wiggle 1.2s ease-in-out infinite;
+}
+.landmark .decor-pip {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  margin-top: 1px;
+  background: #bbb;
+}
+.landmark.unlocked .decor-pip { background: #ffc107; }
+.landmark.upgraded .decor-pip { background: #4caf50; box-shadow: 0 0 4px #7dff7d; }
+
+@keyframes stamp-wiggle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.decorate-overlay {
+  z-index: 40;
+}
+
+.decorate-card {
+  position: relative;
+  width: min(92%, 360px);
+  background: linear-gradient(180deg, #fffaf0, #ffe8c8);
+  border-radius: 18px;
+  border: 3px solid #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  padding: 16px 14px 14px;
+  color: var(--text);
+}
+
+.decorate-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.08);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.decorate-card h2 {
+  margin: 0 0 4px;
+  font-size: 1.15rem;
+}
+
+.decorate-lead {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.decorate-preview {
+  height: 88px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  box-shadow: var(--shadow);
+  position: relative;
+  background: #9ed4f0;
+  margin-bottom: 10px;
+}
+
+.decorate-preview .scene-layer {
+  background-size: cover;
+  background-position: center bottom;
+}
+
+.decorate-info {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin-bottom: 10px;
+  min-height: 2.6em;
+}
+
+.decorate-info strong {
+  color: #bf360c;
+}
+
+.decorate-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.decorate-actions .btn-candy {
+  flex: 1;
+  font-size: 0.78rem;
+  padding: 10px 8px;
+}
+
+.btn-candy:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+.decorate-hint {
+  margin: 8px 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: center;
+  min-height: 1.2em;
+}
+
+/* Soften global sky so landmark scene reads clearly */
+#app {
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 16%, #8fd4a8 74%, #c8b070 90%, #b89860 100%);
+  background-color: #9ed4f0;
+}
+
+.btn-decorate.pulse {
+  animation: stamp-wiggle 1.1s ease-in-out infinite;
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.7), var(--shadow);
+}

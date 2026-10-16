@@ -29,3 +29,9 @@
 - 比例：HUD ~7.5% / 顧客 ~14.5% / 棋盤 ~68% / 詳情 ~10%
 
 GitHub Pages：https://jansonlau0126.github.io/travel-merge/
+
+
+## 景點裝修 meta
+- 用旅費解鎖下一站景點（扣旅費）
+- 用旅費裝修當前景點：畫面 before（灰）→ after（亮）
+- 撳頂右「裝修」或景點列開啟面板

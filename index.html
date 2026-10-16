@@ -8,6 +8,13 @@
 </head>
 <body>
   <div id="app">
+    <!-- Landmark scene strip (before→after decoration meta) -->
+    <div id="landmark-scene" class="landmark-scene" data-id="home" data-stage="1" aria-hidden="true">
+      <div class="scene-layer scene-before" id="scene-before"></div>
+      <div class="scene-layer scene-after" id="scene-after"></div>
+      <div class="scene-glow" aria-hidden="true"></div>
+    </div>
+
     <!-- P2: compact icon-chip HUD -->
     <header class="hud" aria-label="資源列">
       <div class="hud-level" title="等級">
@@ -34,10 +41,11 @@
           <button type="button" id="btn-gems-plus" class="chip-plus" title="商店（未實裝）" aria-label="加寶石">⊕</button>
         </div>
       </div>
-      <button type="button" class="hud-shop" id="btn-shop" title="商店（未實裝）" aria-label="商店">🛒</button>
+      <button type="button" class="hud-shop" id="btn-shop" title="景點裝修" aria-label="景點裝修">🛒</button>
     </header>
 
     <nav class="landmarks-slim" id="landmarks" aria-label="景點進度"></nav>
+    <button type="button" id="btn-decorate" class="btn-decorate" title="景點裝修" aria-label="景點裝修">裝修</button>
 
     <!-- P0: customers + bubbles ABOVE heads -->
     <section class="customers" aria-label="旅客訂單">
@@ -66,6 +74,21 @@
     <div id="fly-layer" class="fly-layer" aria-hidden="true"></div>
     <div id="toast" class="toast" hidden></div>
     <div id="reward-pop" class="reward-pop" hidden></div>
+    
+    <div id="decorate-modal" class="overlay decorate-overlay" hidden>
+      <div class="decorate-card" role="dialog" aria-labelledby="decorate-title">
+        <button type="button" id="btn-decorate-close" class="decorate-close" aria-label="關閉">×</button>
+        <h2 id="decorate-title">景點裝修</h2>
+        <p class="decorate-lead">用旅費解鎖下一個景點，或者裝修而家呢個——畫面會由灰變靚。</p>
+        <div id="decorate-preview" class="decorate-preview" aria-hidden="true"></div>
+        <div id="decorate-info" class="decorate-info"></div>
+        <div class="decorate-actions">
+          <button type="button" id="btn-unlock-next" class="btn-candy btn-unlock">解鎖下站</button>
+          <button type="button" id="btn-upgrade-decor" class="btn-candy btn-upgrade">裝修亮燈</button>
+        </div>
+        <p id="decorate-hint" class="decorate-hint"></p>
+      </div>
+    </div>
     <div id="win-overlay" class="overlay" hidden>
       <div class="win-card">
         <div class="win-emoji"><img src="assets/vehicles/lv10_airliner.svg" alt="" width="48" height="48" /> 🗼</div>

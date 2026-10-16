@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120">
+  <defs>
+  <filter id="g"><feColorMatrix type="saturate" values="0.15"/></filter>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#87ceeb"/>
+      <stop offset="100%" stop-color="#b0b8c0"/>
+    </linearGradient>
+    <linearGradient id="gnd" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#708090"/>
+      <stop offset="100%" stop-color="#f0e8d8"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="120" fill="url(#sky)"/>
+  <ellipse cx="180" cy="110" rx="160" ry="40" fill="url(#gnd)" opacity="0.45" filter="url(#g)"/>
+  <circle cx="300" cy="28" r="18" fill="#fff8e0" opacity="0.35"/>
+  <text x="180" y="72" text-anchor="middle" font-size="48" opacity="0.45" filter="url(#g)">🏛️</text>
+</svg>

@@ -8,6 +8,7 @@
    P5: glossy CSS tiles + original SVG vehicle/customer assets
    P6: four-band vertical ratios
    + Multi-generator + order pacing (easy/mid/hard + timed bonus)
+   + Landmark decoration meta: spend 旅費 unlock/upgrade before→after scene
    ============================================================ */
 const CONFIG = {
   COLS: 7,
@@ -48,12 +49,60 @@ const CHAIN = [
 ];
 
 const LANDMARKS = [
-  { id: "home", name: "家鄉紀念碑", emoji: "🗿", cost: 0 },
-  { id: "torii", name: "日本鳥居", emoji: "⛩️", cost: 80 },
-  { id: "pisa", name: "比薩斜塔", emoji: "🏛️", cost: 200 },
-  { id: "bigben", name: "大笨鐘", emoji: "🔔", cost: 400 },
-  { id: "liberty", name: "自由女神", emoji: "🗽", cost: 700 },
-  { id: "eiffel", name: "埃菲爾鐵塔", emoji: "🗼", cost: 1100 },
+  {
+    id: "home",
+    name: "家鄉紀念碑",
+    emoji: "🗿",
+    unlockCost: 0,
+    decorCost: 25,
+    before: "assets/landmarks/home_before.svg",
+    after: "assets/landmarks/home_after.svg",
+  },
+  {
+    id: "torii",
+    name: "日本鳥居",
+    emoji: "⛩️",
+    unlockCost: 80,
+    decorCost: 40,
+    before: "assets/landmarks/torii_before.svg",
+    after: "assets/landmarks/torii_after.svg",
+  },
+  {
+    id: "pisa",
+    name: "比薩斜塔",
+    emoji: "🏛️",
+    unlockCost: 200,
+    decorCost: 80,
+    before: "assets/landmarks/pisa_before.svg",
+    after: "assets/landmarks/pisa_after.svg",
+  },
+  {
+    id: "bigben",
+    name: "大笨鐘",
+    emoji: "🔔",
+    unlockCost: 400,
+    decorCost: 140,
+    before: "assets/landmarks/bigben_before.svg",
+    after: "assets/landmarks/bigben_after.svg",
+  },
+  {
+    id: "liberty",
+    name: "自由女神",
+    emoji: "🗽",
+    unlockCost: 700,
+    decorCost: 220,
+    before: "assets/landmarks/liberty_before.svg",
+    after: "assets/landmarks/liberty_after.svg",
+  },
+  {
+    id: "eiffel",
+    name: "埃菲爾鐵塔",
+    emoji: "🗼",
+    unlockCost: 1100,
+    decorCost: 300,
+    before: "assets/landmarks/eiffel_before.svg",
+    after: "assets/landmarks/eiffel_after.svg",
+  },
 ];
 
 /** Multi-generator defs — board tiles + dock; unlock by landmark */
@@ -166,6 +215,8 @@ const state = {
   travel: 0,
   gems: 0,
   unlockedLandmark: 0,
+  /** Per-landmark decoration stage: 0 locked, 1 unlocked (before/灰), 2 renovated (after/亮) */
+  decorLevels: [1, 0, 0, 0, 0, 0],
   board: /** @type {(null|{ level?: number, genId?: string, uid: number })[]} */ ([]),
   orders: /** @type {any[]} */ ([]),
   selectedIndex: null,
@@ -632,25 +683,105 @@ function ensureOrderInstances() {
   }
 }
 
+function nextLandmark() {
+  if (state.unlockedLandmark >= LANDMARKS.length - 1) return null;
+  return LANDMARKS[state.unlockedLandmark + 1];
+}
+
+function canAffordUnlock() {
+  const n = nextLandmark();
+  return !!(n && state.travel >= n.unlockCost);
+}
+
+function canAffordUpgrade() {
+  const i = state.unlockedLandmark;
+  const lm = LANDMARKS[i];
+  return state.decorLevels[i] === 1 && state.travel >= lm.decorCost;
+}
+
+/** Soft nudge after earning travel — spend happens in decorate UI */
 function checkLandmarkUnlocks() {
-  let changed = false;
-  while (
-    state.unlockedLandmark < LANDMARKS.length - 1 &&
-    state.travel >= LANDMARKS[state.unlockedLandmark + 1].cost
-  ) {
-    state.unlockedLandmark++;
-    changed = true;
-    const lm = LANDMARKS[state.unlockedLandmark];
-    showToast(`護照蓋章！${lm.emoji} ${lm.name}`);
-    // Unlock new generators
-    for (const gen of GENERATORS) {
-      if (gen.unlockLandmark === state.unlockedLandmark) {
-        placeGeneratorOnBoard(gen);
-        showToast(`解鎖生產器：${gen.name}！`);
-      }
+  const n = nextLandmark();
+  if (n && state.travel >= n.unlockCost) {
+    // no auto-unlock; hint only (avoid spam every order)
+  }
+  if (canAffordUpgrade()) {
+    // hint via landmark pip / decorate button state on render
+  }
+}
+
+function unlockNextLandmark() {
+  const n = nextLandmark();
+  if (!n) {
+    showToast("所有景點都解鎖晒喇！");
+    return false;
+  }
+  if (state.travel < n.unlockCost) {
+    showToast(`旅費唔夠解鎖 ${n.name}（要 ${n.unlockCost}✈️）`);
+    return false;
+  }
+  state.travel -= n.unlockCost;
+  state.unlockedLandmark++;
+  state.decorLevels[state.unlockedLandmark] = 1;
+  const lm = LANDMARKS[state.unlockedLandmark];
+  showToast(`護照蓋章！${lm.emoji} ${lm.name}（-${n.unlockCost}✈️）`);
+  for (const gen of GENERATORS) {
+    if (gen.unlockLandmark === state.unlockedLandmark) {
+      placeGeneratorOnBoard(gen);
+      showToast(`解鎖生產器：${gen.name}！`);
     }
   }
-  if (changed) refillOrders();
+  refillOrders();
+  flashSceneUpgrade();
+  render();
+  updateDecorateModal();
+  return true;
+}
+
+function upgradeCurrentLandmark() {
+  const i = state.unlockedLandmark;
+  const lm = LANDMARKS[i];
+  if (state.decorLevels[i] >= 2) {
+    showToast(`${lm.name} 已經裝修好晒！`);
+    return false;
+  }
+  if (state.decorLevels[i] < 1) {
+    showToast("要先解鎖呢個景點");
+    return false;
+  }
+  if (state.travel < lm.decorCost) {
+    showToast(`旅費唔夠裝修（要 ${lm.decorCost}✈️）`);
+    return false;
+  }
+  state.travel -= lm.decorCost;
+  state.decorLevels[i] = 2;
+  showToast(`裝修完成！${lm.emoji} ${lm.name} 亮起（-${lm.decorCost}✈️）`);
+  flashSceneUpgrade();
+  render();
+  updateDecorateModal();
+  return true;
+}
+
+function flashSceneUpgrade() {
+  const scene = document.getElementById("landmark-scene");
+  if (!scene) return;
+  scene.classList.remove("flash-upgrade");
+  void scene.offsetWidth;
+  scene.classList.add("flash-upgrade");
+}
+
+function renderLandmarkScene() {
+  const scene = document.getElementById("landmark-scene");
+  if (!scene) return;
+  const i = state.unlockedLandmark;
+  const lm = LANDMARKS[i];
+  const stage = Math.max(1, state.decorLevels[i] || 1);
+  scene.dataset.id = lm.id;
+  scene.dataset.stage = String(stage);
+  const before = document.getElementById("scene-before");
+  const after = document.getElementById("scene-after");
+  if (before) before.style.backgroundImage = `url("${lm.before}")`;
+  if (after) after.style.backgroundImage = `url("${lm.after}")`;
 }
 
 /* ============================================================
@@ -781,19 +912,43 @@ function updateBonusTimers() {
 function renderLandmarks() {
   const root = document.getElementById("landmarks");
   root.innerHTML = "";
+  const next = nextLandmark();
   LANDMARKS.forEach((lm, i) => {
     const div = document.createElement("div");
     div.className = "landmark";
-    if (i <= state.unlockedLandmark) div.classList.add("unlocked");
+    const stage = state.decorLevels[i] || 0;
+    if (stage >= 1) div.classList.add("unlocked");
+    if (stage >= 2) div.classList.add("upgraded");
     if (i === state.unlockedLandmark) div.classList.add("current");
-    div.title = `${lm.name}${i === 0 ? "（出發）" : " · " + lm.cost + "✈️"}`;
+    if (next && i === state.unlockedLandmark + 1 && state.travel >= next.unlockCost) {
+      div.classList.add("can-unlock");
+    }
+    if (i === state.unlockedLandmark && canAffordUpgrade()) {
+      div.classList.add("can-upgrade");
+    }
+    const costLabel =
+      i === 0
+        ? "出發"
+        : stage >= 1
+          ? stage >= 2
+            ? "已裝修"
+            : `裝修 ${lm.decorCost}✈️`
+          : `解鎖 ${lm.unlockCost}✈️`;
+    div.title = `${lm.name} · ${costLabel}`;
     div.innerHTML = `
       <div class="stamp">${lm.emoji}</div>
       <div class="lm-name">${lm.name}</div>
-      <div class="lm-cost">${i === 0 ? "出發" : lm.cost + "✈️"}</div>
+      <div class="lm-cost">${costLabel}</div>
+      <span class="decor-pip" aria-hidden="true"></span>
     `;
+    div.addEventListener("click", () => openDecorateModal());
     root.appendChild(div);
   });
+  renderLandmarkScene();
+  const btn = document.getElementById("btn-decorate");
+  if (btn) {
+    btn.classList.toggle("pulse", canAffordUnlock() || canAffordUpgrade());
+  }
 }
 
 function renderDock() {
@@ -1129,6 +1284,72 @@ function renderResources() {
   });
 }
 
+function openDecorateModal() {
+  const modal = document.getElementById("decorate-modal");
+  if (!modal) return;
+  modal.hidden = false;
+  updateDecorateModal();
+}
+
+function closeDecorateModal() {
+  const modal = document.getElementById("decorate-modal");
+  if (modal) modal.hidden = true;
+}
+
+function updateDecorateModal() {
+  const i = state.unlockedLandmark;
+  const lm = LANDMARKS[i];
+  const stage = state.decorLevels[i] || 1;
+  const preview = document.getElementById("decorate-preview");
+  if (preview) {
+    preview.innerHTML = `
+      <div class="scene-layer scene-before" style="background-image:url('${lm.before}');opacity:${stage >= 2 ? 0 : 1}"></div>
+      <div class="scene-layer scene-after" style="background-image:url('${lm.after}');opacity:${stage >= 2 ? 1 : 0}"></div>
+    `;
+  }
+  const info = document.getElementById("decorate-info");
+  const stageLabel = stage >= 2 ? "已裝修（after 亮燈）" : "未裝修（before 灰調）";
+  const next = nextLandmark();
+  let nextLine = "已經到最終站埃菲爾鐵塔。";
+  if (next) {
+    nextLine = `下一站 <strong>${next.emoji} ${next.name}</strong> — 解鎖要 <strong>${next.unlockCost}✈️</strong>`;
+  }
+  if (info) {
+    info.innerHTML = `
+      而家景點：<strong>${lm.emoji} ${lm.name}</strong><br/>
+      狀態：${stageLabel}<br/>
+      裝修費：<strong>${lm.decorCost}✈️</strong>（而家有 ${state.travel}✈️）<br/>
+      ${nextLine}
+    `;
+  }
+  const unlockBtn = document.getElementById("btn-unlock-next");
+  const upgradeBtn = document.getElementById("btn-upgrade-decor");
+  const hint = document.getElementById("decorate-hint");
+  if (unlockBtn) {
+    if (!next) {
+      unlockBtn.disabled = true;
+      unlockBtn.textContent = "已全部解鎖";
+    } else {
+      unlockBtn.disabled = state.travel < next.unlockCost;
+      unlockBtn.textContent = `解鎖 ${next.name}（${next.unlockCost}✈️）`;
+    }
+  }
+  if (upgradeBtn) {
+    if (stage >= 2) {
+      upgradeBtn.disabled = true;
+      upgradeBtn.textContent = "已裝修完成";
+    } else {
+      upgradeBtn.disabled = state.travel < lm.decorCost;
+      upgradeBtn.textContent = `裝修亮燈（${lm.decorCost}✈️）`;
+    }
+  }
+  if (hint) {
+    if (canAffordUnlock()) hint.textContent = "旅費夠解鎖下一站——撳上面掣花旅費開新景點！";
+    else if (canAffordUpgrade()) hint.textContent = "旅費夠裝修——畫面會由灰變靚！";
+    else hint.textContent = "交訂單賺旅費，再返嚟裝修／解鎖。";
+  }
+}
+
 function render() {
   syncGeneratorsToBoard();
   renderResources();
@@ -1175,18 +1396,36 @@ function init() {
   });
   document.getElementById("btn-travel-plus").addEventListener("click", (e) => {
     e.stopPropagation();
-    showToast("商店未實裝");
+    state.travel += 50;
+    renderResources();
+    renderLandmarks();
+    showToast("+50 旅費（試玩）✈️");
   });
   document.getElementById("btn-gems-plus").addEventListener("click", (e) => {
     e.stopPropagation();
     showToast("商店未實裝");
   });
   document.getElementById("btn-shop").addEventListener("click", () => {
-    showToast("商店未實裝");
+    openDecorateModal();
   });
   document.getElementById("btn-win-close").addEventListener("click", () => {
     document.getElementById("win-overlay").hidden = true;
   });
+
+  const btnDecor = document.getElementById("btn-decorate");
+  if (btnDecor) btnDecor.addEventListener("click", openDecorateModal);
+  const btnClose = document.getElementById("btn-decorate-close");
+  if (btnClose) btnClose.addEventListener("click", closeDecorateModal);
+  const btnUnlock = document.getElementById("btn-unlock-next");
+  if (btnUnlock) btnUnlock.addEventListener("click", () => unlockNextLandmark());
+  const btnUpgrade = document.getElementById("btn-upgrade-decor");
+  if (btnUpgrade) btnUpgrade.addEventListener("click", () => upgradeCurrentLandmark());
+  const decorModal = document.getElementById("decorate-modal");
+  if (decorModal) {
+    decorModal.addEventListener("click", (e) => {
+      if (e.target === decorModal) closeDecorateModal();
+    });
+  }
 
   setInterval(tickEnergy, 250);
 }
