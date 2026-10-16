@@ -1,29 +1,32 @@
 /* ============================================================
    環遊合併 — Prototype (Travel Town / Gossip Harbor layout DNA)
-   P0: customer row + bubbles above heads
-   P1: wood board dominates vertical space
-   P2: compact icon-chip HUD + energy countdown
-   P3: fly-to-customer submit + bubble ready check + reward pop
-   P4: collapsed detail strip; gen/boost floating dock
-   P5: glossy CSS tiles + original SVG vehicle/customer assets
-   P6: four-band vertical ratios
-   + Multi-generator + order pacing (easy/mid/hard + timed bonus)
-   + Landmark decoration meta: spend 旅費 unlock/upgrade before→after scene
+   P0–P6 layout + multi-generator + order pacing + landmark decor
+   + Sound (Web Audio beeps) + particle bursts + mute toggle
+   + Chapter 1 balance retune (early session rewarding)
    ============================================================ */
 const CONFIG = {
   COLS: 7,
   ROWS: 8,
   ENERGY_START: 100,
   ENERGY_MAX: 100,
-  ENERGY_REGEN_MS: 120000,
+  ENERGY_REGEN_MS: 90000, // 1.5 分鐘 +1（早期節奏更爽）
   GENERATOR_COST: 1,
   BOOST_COST: 2,
   ORDER_SLOTS: 4,
-  START_ITEMS: [{ level: 1 }, { level: 1 }, { level: 1 }, { level: 2 }],
+  START_ITEMS: [
+    { level: 1 },
+    { level: 1 },
+    { level: 1 },
+    { level: 1 },
+    { level: 2 },
+    { level: 2 },
+  ],
   FLY_MS: 480,
   BONUS_DURATION_MS: 180000,
   BONUS_MULT: 1.5,
   ALMOST_THRESHOLD: 0.6,
+  /** 交單回饋能量（易／中／難）— 早期唔易斷電 */
+  ENERGY_ON_ORDER: { easy: 2, mid: 3, hard: 5 },
 };
 
 const CUSTOMER_ASSETS = [
@@ -54,7 +57,7 @@ const LANDMARKS = [
     name: "家鄉紀念碑",
     emoji: "🗿",
     unlockCost: 0,
-    decorCost: 25,
+    decorCost: 15,
     before: "assets/landmarks/home_before.svg",
     after: "assets/landmarks/home_after.svg",
   },
@@ -62,8 +65,8 @@ const LANDMARKS = [
     id: "torii",
     name: "日本鳥居",
     emoji: "⛩️",
-    unlockCost: 80,
-    decorCost: 40,
+    unlockCost: 50,
+    decorCost: 25,
     before: "assets/landmarks/torii_before.svg",
     after: "assets/landmarks/torii_after.svg",
   },
@@ -71,8 +74,8 @@ const LANDMARKS = [
     id: "pisa",
     name: "比薩斜塔",
     emoji: "🏛️",
-    unlockCost: 200,
-    decorCost: 80,
+    unlockCost: 120,
+    decorCost: 50,
     before: "assets/landmarks/pisa_before.svg",
     after: "assets/landmarks/pisa_after.svg",
   },
@@ -80,8 +83,8 @@ const LANDMARKS = [
     id: "bigben",
     name: "大笨鐘",
     emoji: "🔔",
-    unlockCost: 400,
-    decorCost: 140,
+    unlockCost: 250,
+    decorCost: 90,
     before: "assets/landmarks/bigben_before.svg",
     after: "assets/landmarks/bigben_after.svg",
   },
@@ -89,8 +92,8 @@ const LANDMARKS = [
     id: "liberty",
     name: "自由女神",
     emoji: "🗽",
-    unlockCost: 700,
-    decorCost: 220,
+    unlockCost: 450,
+    decorCost: 140,
     before: "assets/landmarks/liberty_before.svg",
     after: "assets/landmarks/liberty_after.svg",
   },
@@ -98,8 +101,8 @@ const LANDMARKS = [
     id: "eiffel",
     name: "埃菲爾鐵塔",
     emoji: "🗼",
-    unlockCost: 1100,
-    decorCost: 300,
+    unlockCost: 700,
+    decorCost: 200,
     before: "assets/landmarks/eiffel_before.svg",
     after: "assets/landmarks/eiffel_after.svg",
   },
@@ -159,52 +162,52 @@ const GENERATORS = [
 ];
 
 const ORDER_POOL = [
-  // Home — easy session-completable; mid/hard overlap on Lv2–4
-  { id: "o_paper", title: "送報紙哥出門", needs: [{ level: 1, count: 2 }], difficulty: "easy", reward: 8, poolFrom: 0 },
-  { id: "o_market", title: "街坊買菜", needs: [{ level: 2, count: 1 }], difficulty: "easy", reward: 10, poolFrom: 0 },
-  { id: "o_errand", title: "街口幫襯", needs: [{ level: 1, count: 1 }, { level: 2, count: 1 }], difficulty: "easy", reward: 12, poolFrom: 0 },
-  { id: "o_school", title: "學生返學", needs: [{ level: 2, count: 2 }], difficulty: "mid", reward: 18, poolFrom: 0 },
-  { id: "o_delivery", title: "外賣仔趕單", needs: [{ level: 3, count: 1 }], difficulty: "mid", reward: 22, poolFrom: 0 },
-  { id: "o_patrol", title: "夜班巡邏", needs: [{ level: 4, count: 1 }], difficulty: "mid", reward: 28, poolFrom: 0 },
-  { id: "o_first_trip", title: "第一次出城影相", needs: [{ level: 4, count: 1 }, { level: 2, count: 1 }], difficulty: "hard", reward: 45, poolFrom: 0 },
+  // Home — 早期爽感：獎勵抬高，仍 1 易 + 2 中 + 1 難
+  { id: "o_paper", title: "送報紙哥出門", needs: [{ level: 1, count: 2 }], difficulty: "easy", reward: 14, poolFrom: 0 },
+  { id: "o_market", title: "街坊買菜", needs: [{ level: 2, count: 1 }], difficulty: "easy", reward: 16, poolFrom: 0 },
+  { id: "o_errand", title: "街口幫襯", needs: [{ level: 1, count: 1 }, { level: 2, count: 1 }], difficulty: "easy", reward: 18, poolFrom: 0 },
+  { id: "o_school", title: "學生返學", needs: [{ level: 2, count: 2 }], difficulty: "mid", reward: 28, poolFrom: 0 },
+  { id: "o_delivery", title: "外賣仔趕單", needs: [{ level: 3, count: 1 }], difficulty: "mid", reward: 34, poolFrom: 0 },
+  { id: "o_patrol", title: "夜班巡邏", needs: [{ level: 4, count: 1 }], difficulty: "mid", reward: 42, poolFrom: 0 },
+  { id: "o_first_trip", title: "第一次出城影相", needs: [{ level: 4, count: 1 }, { level: 2, count: 1 }], difficulty: "hard", reward: 65, poolFrom: 0 },
 
-  { id: "o_torii_easy1", title: "神社外圍散步", needs: [{ level: 2, count: 2 }], difficulty: "easy", reward: 14, poolFrom: 1 },
-  { id: "o_torii_easy2", title: "京都短途", needs: [{ level: 3, count: 1 }], difficulty: "easy", reward: 16, poolFrom: 1 },
-  { id: "o_torii_easy3", title: "鳥居腳下接客", needs: [{ level: 2, count: 1 }, { level: 3, count: 1 }], difficulty: "easy", reward: 18, poolFrom: 1 },
-  { id: "o_torii_mid1", title: "鳥居打卡團", needs: [{ level: 4, count: 1 }], difficulty: "mid", reward: 32, poolFrom: 1 },
-  { id: "o_torii_mid2", title: "載遊客去參拜", needs: [{ level: 5, count: 1 }], difficulty: "mid", reward: 40, poolFrom: 1 },
-  { id: "o_torii_mid3", title: "電單車接駁團", needs: [{ level: 4, count: 1 }, { level: 3, count: 1 }], difficulty: "mid", reward: 36, poolFrom: 1 },
-  { id: "o_torii_hard", title: "全家賞櫻出遊", needs: [{ level: 6, count: 1 }], difficulty: "hard", reward: 70, poolFrom: 1 },
+  { id: "o_torii_easy1", title: "神社外圍散步", needs: [{ level: 2, count: 2 }], difficulty: "easy", reward: 20, poolFrom: 1 },
+  { id: "o_torii_easy2", title: "京都短途", needs: [{ level: 3, count: 1 }], difficulty: "easy", reward: 22, poolFrom: 1 },
+  { id: "o_torii_easy3", title: "鳥居腳下接客", needs: [{ level: 2, count: 1 }, { level: 3, count: 1 }], difficulty: "easy", reward: 24, poolFrom: 1 },
+  { id: "o_torii_mid1", title: "鳥居打卡團", needs: [{ level: 4, count: 1 }], difficulty: "mid", reward: 42, poolFrom: 1 },
+  { id: "o_torii_mid2", title: "載遊客去參拜", needs: [{ level: 5, count: 1 }], difficulty: "mid", reward: 52, poolFrom: 1 },
+  { id: "o_torii_mid3", title: "電單車接駁團", needs: [{ level: 4, count: 1 }, { level: 3, count: 1 }], difficulty: "mid", reward: 48, poolFrom: 1 },
+  { id: "o_torii_hard", title: "全家賞櫻出遊", needs: [{ level: 6, count: 1 }], difficulty: "hard", reward: 85, poolFrom: 1 },
 
-  { id: "o_pisa_easy", title: "斜塔廣場散步", needs: [{ level: 3, count: 2 }], difficulty: "easy", reward: 20, poolFrom: 2 },
-  { id: "o_pisa_easy2", title: "托斯卡尼短程", needs: [{ level: 4, count: 1 }], difficulty: "easy", reward: 24, poolFrom: 2 },
-  { id: "o_pisa_mid1", title: "義大利公路遊", needs: [{ level: 5, count: 1 }], difficulty: "mid", reward: 45, poolFrom: 2 },
-  { id: "o_pisa_mid2", title: "雙車接團", needs: [{ level: 5, count: 2 }], difficulty: "mid", reward: 55, poolFrom: 2 },
-  { id: "o_pisa_mid3", title: "電單車+私家車", needs: [{ level: 4, count: 1 }, { level: 5, count: 1 }], difficulty: "mid", reward: 50, poolFrom: 2 },
-  { id: "o_pisa_hard", title: "廂型車載全班同學", needs: [{ level: 6, count: 1 }], difficulty: "hard", reward: 85, poolFrom: 2 },
+  { id: "o_pisa_easy", title: "斜塔廣場散步", needs: [{ level: 3, count: 2 }], difficulty: "easy", reward: 28, poolFrom: 2 },
+  { id: "o_pisa_easy2", title: "托斯卡尼短程", needs: [{ level: 4, count: 1 }], difficulty: "easy", reward: 32, poolFrom: 2 },
+  { id: "o_pisa_mid1", title: "義大利公路遊", needs: [{ level: 5, count: 1 }], difficulty: "mid", reward: 58, poolFrom: 2 },
+  { id: "o_pisa_mid2", title: "雙車接團", needs: [{ level: 5, count: 2 }], difficulty: "mid", reward: 70, poolFrom: 2 },
+  { id: "o_pisa_mid3", title: "電單車+私家車", needs: [{ level: 4, count: 1 }, { level: 5, count: 1 }], difficulty: "mid", reward: 64, poolFrom: 2 },
+  { id: "o_pisa_hard", title: "廂型車載全班同學", needs: [{ level: 6, count: 1 }], difficulty: "hard", reward: 100, poolFrom: 2 },
 
-  { id: "o_london_easy", title: "泰晤士河岸短程", needs: [{ level: 5, count: 1 }], difficulty: "easy", reward: 30, poolFrom: 3 },
-  { id: "o_london_easy2", title: "城區接駁", needs: [{ level: 4, count: 2 }], difficulty: "easy", reward: 28, poolFrom: 3 },
-  { id: "o_london_mid1", title: "倫敦城際巴士", needs: [{ level: 7, count: 1 }], difficulty: "mid", reward: 70, poolFrom: 3 },
-  { id: "o_london_mid2", title: "廂型車 + 電單車接駁", needs: [{ level: 6, count: 1 }, { level: 4, count: 1 }], difficulty: "mid", reward: 65, poolFrom: 3 },
-  { id: "o_london_hard", title: "乘列車睇大笨鐘", needs: [{ level: 8, count: 1 }], difficulty: "hard", reward: 110, poolFrom: 3 },
+  { id: "o_london_easy", title: "泰晤士河岸短程", needs: [{ level: 5, count: 1 }], difficulty: "easy", reward: 38, poolFrom: 3 },
+  { id: "o_london_easy2", title: "城區接駁", needs: [{ level: 4, count: 2 }], difficulty: "easy", reward: 36, poolFrom: 3 },
+  { id: "o_london_mid1", title: "倫敦城際巴士", needs: [{ level: 7, count: 1 }], difficulty: "mid", reward: 85, poolFrom: 3 },
+  { id: "o_london_mid2", title: "廂型車 + 電單車接駁", needs: [{ level: 6, count: 1 }, { level: 4, count: 1 }], difficulty: "mid", reward: 78, poolFrom: 3 },
+  { id: "o_london_hard", title: "乘列車睇大笨鐘", needs: [{ level: 8, count: 1 }], difficulty: "hard", reward: 130, poolFrom: 3 },
 
-  { id: "o_lib_easy", title: "紐約港短程", needs: [{ level: 6, count: 1 }], difficulty: "easy", reward: 40, poolFrom: 4 },
-  { id: "o_lib_easy2", title: "曼哈頓接客", needs: [{ level: 5, count: 2 }], difficulty: "easy", reward: 42, poolFrom: 4 },
-  { id: "o_lib_mid", title: "跨區長途", needs: [{ level: 7, count: 1 }], difficulty: "mid", reward: 80, poolFrom: 4 },
-  { id: "o_lib_hard1", title: "列車直達港口", needs: [{ level: 8, count: 1 }], difficulty: "mid", reward: 100, poolFrom: 4 },
-  { id: "o_lib_hard2", title: "渡輪睇女神", needs: [{ level: 9, count: 1 }], difficulty: "hard", reward: 140, poolFrom: 4 },
+  { id: "o_lib_easy", title: "紐約港短程", needs: [{ level: 6, count: 1 }], difficulty: "easy", reward: 48, poolFrom: 4 },
+  { id: "o_lib_easy2", title: "曼哈頓接客", needs: [{ level: 5, count: 2 }], difficulty: "easy", reward: 50, poolFrom: 4 },
+  { id: "o_lib_mid", title: "跨區長途", needs: [{ level: 7, count: 1 }], difficulty: "mid", reward: 95, poolFrom: 4 },
+  { id: "o_lib_hard1", title: "列車直達港口", needs: [{ level: 8, count: 1 }], difficulty: "mid", reward: 115, poolFrom: 4 },
+  { id: "o_lib_hard2", title: "渡輪睇女神", needs: [{ level: 9, count: 1 }], difficulty: "hard", reward: 160, poolFrom: 4 },
 
-  { id: "o_eiffel_easy", title: "塞納河畔接駁", needs: [{ level: 7, count: 1 }], difficulty: "easy", reward: 50, poolFrom: 5 },
-  { id: "o_eiffel_easy2", title: "鐵塔腳下短程", needs: [{ level: 6, count: 2 }], difficulty: "easy", reward: 52, poolFrom: 5 },
-  { id: "o_eiffel_mid", title: "巴黎城際列車", needs: [{ level: 8, count: 1 }], difficulty: "mid", reward: 95, poolFrom: 5 },
-  { id: "o_eiffel_hard", title: "渡輪再到市區", needs: [{ level: 9, count: 1 }], difficulty: "mid", reward: 120, poolFrom: 5 },
+  { id: "o_eiffel_easy", title: "塞納河畔接駁", needs: [{ level: 7, count: 1 }], difficulty: "easy", reward: 58, poolFrom: 5 },
+  { id: "o_eiffel_easy2", title: "鐵塔腳下短程", needs: [{ level: 6, count: 2 }], difficulty: "easy", reward: 60, poolFrom: 5 },
+  { id: "o_eiffel_mid", title: "巴黎城際列車", needs: [{ level: 8, count: 1 }], difficulty: "mid", reward: 110, poolFrom: 5 },
+  { id: "o_eiffel_hard", title: "渡輪再到市區", needs: [{ level: 9, count: 1 }], difficulty: "mid", reward: 140, poolFrom: 5 },
   {
     id: "o_eiffel_finale",
     title: "鐵塔首航",
     needs: [{ level: 10, count: 1 }],
     difficulty: "hard",
-    reward: 160,
+    reward: 200,
     poolFrom: 5,
     isFinale: true,
   },
@@ -231,7 +234,117 @@ const state = {
   bonusOrderInst: null,
   bonusEndsAt: 0,
   placedGenerators: /** @type {Set<string>} */ (new Set()),
+  muted: localStorage.getItem("tm_mute") === "1",
 };
+
+/* ============================================================
+   Web Audio beeps（唔使外部音檔）+ DOM 粒子
+   ============================================================ */
+const AudioFX = {
+  ctx: null,
+  ensure() {
+    if (state.muted) return null;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!this.ctx) this.ctx = new AC();
+    if (this.ctx.state === "suspended") this.ctx.resume();
+    return this.ctx;
+  },
+  tone(freq, dur, type, vol, when) {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const t0 = ctx.currentTime + (when || 0);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type || "sine";
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(Math.max(0.0001, vol || 0.08), t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.03);
+  },
+  merge() {
+    this.tone(480, 0.07, "triangle", 0.07, 0);
+    this.tone(720, 0.1, "sine", 0.06, 0.05);
+  },
+  order() {
+    this.tone(523.25, 0.08, "sine", 0.08, 0);
+    this.tone(659.25, 0.09, "sine", 0.07, 0.07);
+    this.tone(783.99, 0.14, "triangle", 0.08, 0.15);
+  },
+  unlock() {
+    this.tone(392, 0.1, "sine", 0.08, 0);
+    this.tone(523.25, 0.1, "sine", 0.08, 0.09);
+    this.tone(659.25, 0.1, "sine", 0.08, 0.18);
+    this.tone(830.61, 0.22, "triangle", 0.09, 0.28);
+  },
+};
+
+function fxLayer() {
+  let el = document.getElementById("fx-layer");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "fx-layer";
+    el.className = "fx-layer";
+    el.setAttribute("aria-hidden", "true");
+    document.getElementById("app").appendChild(el);
+  }
+  return el;
+}
+
+function burstParticles(x, y, opts) {
+  const layer = fxLayer();
+  const count = (opts && opts.count) || 16;
+  const colors = (opts && opts.colors) || ["#ffd54f", "#ff8a65", "#81d4fa", "#a5d6a7", "#fff"];
+  const spread = (opts && opts.spread) || 70;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement("span");
+    p.className = "fx-particle";
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
+    const dist = spread * (0.45 + Math.random() * 0.7);
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist - 18;
+    const size = 5 + Math.random() * 7;
+    p.style.left = x + "px";
+    p.style.top = y + "px";
+    p.style.width = size + "px";
+    p.style.height = size + "px";
+    p.style.background = colors[i % colors.length];
+    p.style.setProperty("--dx", dx.toFixed(1) + "px");
+    p.style.setProperty("--dy", dy.toFixed(1) + "px");
+    p.style.animationDuration = 0.55 + Math.random() * 0.35 + "s";
+    layer.appendChild(p);
+    setTimeout(() => p.remove(), 950);
+  }
+}
+
+function burstAtElement(el, opts) {
+  if (!el) {
+    burstParticles(window.innerWidth / 2, window.innerHeight * 0.42, opts);
+    return;
+  }
+  const r = el.getBoundingClientRect();
+  burstParticles(r.left + r.width / 2, r.top + r.height / 2, opts);
+}
+
+function syncMuteButton() {
+  const btn = document.getElementById("btn-mute");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", state.muted ? "true" : "false");
+  btn.textContent = state.muted ? "🔇" : "🔊";
+  btn.title = state.muted ? "開啟音效" : "靜音";
+  btn.setAttribute("aria-label", state.muted ? "開啟音效" : "靜音");
+}
+
+function toggleMute() {
+  state.muted = !state.muted;
+  localStorage.setItem("tm_mute", state.muted ? "1" : "0");
+  syncMuteButton();
+  showToast(state.muted ? "已靜音 🔇" : "音效開啟 🔊");
+  if (!state.muted) AudioFX.merge();
+}
 
 function vehicle(level) {
   return CHAIN[level - 1];
@@ -659,9 +772,25 @@ async function claimOrder(instKey) {
   }
 
   state.travel += reward;
+  const energyGain = CONFIG.ENERGY_ON_ORDER[order.difficulty] || 2;
+  state.energy = Math.min(CONFIG.ENERGY_MAX, state.energy + energyGain);
   state.usedOrderIds.add(order.id);
-  showToast(hadBonus ? `限時加成完成！+${reward} 旅費 ✈️` : `訂單完成！+${reward} 旅費 ✈️`);
+  showToast(
+    hadBonus
+      ? `限時加成完成！+${reward}✈️ +${energyGain}⚡`
+      : `訂單完成！+${reward}✈️ +${energyGain}⚡`
+  );
   showRewardPop(reward, hadBonus);
+  AudioFX.order();
+  if (customerEl) {
+    burstAtElement(customerEl.querySelector(".bubble") || customerEl, {
+      count: 22,
+      colors: ["#ffd54f", "#ff8a65", "#4fc3f7", "#fff59d", "#ffffff", "#aed581"],
+      spread: 90,
+    });
+  } else {
+    burstParticles(window.innerWidth / 2, window.innerHeight * 0.28, { count: 22, spread: 90 });
+  }
 
   const wasFinale = order.isFinale;
   state.orders.splice(oi, 1);
@@ -671,6 +800,12 @@ async function claimOrder(instKey) {
   if (wasFinale && state.unlockedLandmark >= 5) {
     state.won = true;
     document.getElementById("win-overlay").hidden = false;
+    AudioFX.unlock();
+    burstParticles(window.innerWidth / 2, window.innerHeight * 0.4, {
+      count: 36,
+      colors: ["#ffd54f", "#81d4fa", "#f48fb1", "#fff"],
+      spread: 120,
+    });
   }
 
   state.claiming = false;
@@ -725,6 +860,12 @@ function unlockNextLandmark() {
   state.decorLevels[state.unlockedLandmark] = 1;
   const lm = LANDMARKS[state.unlockedLandmark];
   showToast(`護照蓋章！${lm.emoji} ${lm.name}（-${n.unlockCost}✈️）`);
+  AudioFX.unlock();
+  burstAtElement(document.getElementById("landmark-scene"), {
+    count: 28,
+    colors: ["#ffd54f", "#81d4fa", "#ce93d8", "#ffffff", "#a5d6a7"],
+    spread: 110,
+  });
   for (const gen of GENERATORS) {
     if (gen.unlockLandmark === state.unlockedLandmark) {
       placeGeneratorOnBoard(gen);
@@ -756,6 +897,12 @@ function upgradeCurrentLandmark() {
   state.travel -= lm.decorCost;
   state.decorLevels[i] = 2;
   showToast(`裝修完成！${lm.emoji} ${lm.name} 亮起（-${lm.decorCost}✈️）`);
+  AudioFX.unlock();
+  burstAtElement(document.getElementById("landmark-scene"), {
+    count: 24,
+    colors: ["#fff59d", "#ffcc80", "#80deea", "#ffffff"],
+    spread: 100,
+  });
   flashSceneUpgrade();
   render();
   updateDecorateModal();
@@ -811,6 +958,7 @@ function tryMerge(fromIdx, toIdx) {
   state.board[toIdx] = { level: nextLevel, uid: state.nextUid++ };
   const v = vehicle(nextLevel);
   showToast(`合併成功！${v.emoji} ${v.name}`);
+  AudioFX.merge();
   return true;
 }
 
@@ -1266,7 +1414,14 @@ function wireBoardEvents(boardEl) {
 function flashMerge(idx) {
   requestAnimationFrame(() => {
     const el = document.querySelector(`.cell[data-index="${idx}"] .item`);
-    if (el) el.classList.add("merging");
+    if (el) {
+      el.classList.add("merging");
+      burstAtElement(el, {
+        count: 14,
+        colors: ["#ffe082", "#ffcc80", "#81d4fa", "#ffffff", "#a5d6a7"],
+        spread: 56,
+      });
+    }
   });
 }
 
@@ -1408,6 +1563,20 @@ function init() {
   document.getElementById("btn-shop").addEventListener("click", () => {
     openDecorateModal();
   });
+  const muteBtn = document.getElementById("btn-mute");
+  if (muteBtn) {
+    syncMuteButton();
+    muteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleMute();
+    });
+  }
+  // 第一次互動解鎖 AudioContext
+  const unlockAudio = () => {
+    AudioFX.ensure();
+    document.removeEventListener("pointerdown", unlockAudio);
+  };
+  document.addEventListener("pointerdown", unlockAudio);
   document.getElementById("btn-win-close").addEventListener("click", () => {
     document.getElementById("win-overlay").hidden = true;
   });
