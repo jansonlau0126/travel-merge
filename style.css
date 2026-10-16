@@ -40,11 +40,18 @@ body {
   height: 100%;
   max-height: 100dvh;
   display: grid;
-  /* HUD | landmarks | customers | board (dominates) | slim detail */
-  grid-template-rows: 7.5% 3% 14% minmax(0, 1fr) auto;
+  /* P6 four-band align to merge-2 refs:
+     HUD ~7.5% | customers+bubbles ~14.5% | wood board ~68% | bottom dock ~10%
+     landmarks overlay (not a grid row) so board stays dominant */
+  grid-template-rows: 7.5% 14.5% 68% 10%;
+  grid-template-areas:
+    "hud"
+    "customers"
+    "board"
+    "detail";
   background:
-    linear-gradient(180deg, #6ec6f0 0%, #a8dff5 16%, transparent 16%),
-    linear-gradient(180deg, #8fd4a8 72%, #c8b070 88%, #b89860 100%);
+    linear-gradient(180deg, #6ec6f0 0%, #a8dff5 18%, transparent 18%),
+    linear-gradient(180deg, #8fd4a8 74%, #c8b070 90%, #b89860 100%);
   background-color: #9ed4f0;
   position: relative;
   overflow: hidden;
@@ -52,6 +59,7 @@ body {
 
 /* ========== HUD ========== */
 .hud {
+  grid-area: hud;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -206,15 +214,31 @@ body {
   padding: 0;
 }
 
-/* ========== Landmarks ========== */
+/* ========== Landmarks (P6: overlay under HUD — shares hud cell) ========== */
 .landmarks-slim {
+  grid-area: hud;
+  position: absolute;
+  top: 100%; /* sit just under HUD band */
+  left: 0;
+  right: 0;
+  height: clamp(16px, 2.2vh, 22px);
+  margin-top: 1px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   padding: 0 8px;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
+  z-index: 6;
+  pointer-events: none;
+  /* undo grid stretch */
+  align-self: start;
+  justify-self: stretch;
+  width: 100%;
+}
+.landmarks-slim .landmark {
+  pointer-events: auto;
 }
 
 .landmark {
@@ -248,12 +272,13 @@ body {
 
 /* ========== Customers ========== */
 .customers {
+  grid-area: customers;
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   min-height: 0;
-  padding: 0 4px;
+  padding: 10px 4px 0; /* room under absolute landmarks */
   z-index: 4;
 }
 
@@ -453,11 +478,13 @@ body {
 
 /* ========== Board ========== */
 .board-stage {
+  grid-area: board;
   min-height: 0;
   display: flex;
   align-items: stretch;
   justify-content: center;
-  padding: 4px 10px 36px;
+  /* P6: thin padding — wood fills ~68% band; dock floats on board edge */
+  padding: 2px 8px 10px;
   z-index: 3;
   position: relative;
 }
@@ -653,8 +680,8 @@ body {
 /* ========== P4: floating dock on board edge ========== */
 .board-dock {
   position: absolute;
-  left: 14px;
-  bottom: 6px;
+  left: 12px;
+  bottom: 4px;
   display: flex;
   gap: 8px;
   z-index: 6;
@@ -727,45 +754,41 @@ body {
   background: linear-gradient(180deg, #ea80fc, #7b1fa2);
 }
 
-/* ========== P4: collapsed / expanded detail strip ========== */
+/* ========== P4+P6: detail strip always ~9% band (refs peach banner) ========== */
 .detail-strip {
+  grid-area: detail;
   z-index: 5;
-  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
   padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
   min-height: 0;
-  transition: padding 0.2s ease;
+  box-sizing: border-box;
 }
 
-.detail-strip[data-expanded="false"] {
-  padding-top: 0;
-  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+.detail-strip[data-expanded="false"] .detail-thumb {
+  display: none !important;
 }
 
 .detail-strip[data-expanded="false"] .detail-inner {
-  height: 10px;
-  min-height: 10px;
-  padding: 0;
-  opacity: 0.55;
-  border-width: 1px;
-  overflow: hidden;
-}
-
-.detail-strip[data-expanded="false"] #detail-text,
-.detail-strip[data-expanded="false"] .detail-thumb {
-  display: none !important;
+  opacity: 0.92;
 }
 
 .detail-inner {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: linear-gradient(180deg, rgba(255, 248, 232, 0.95), rgba(255, 224, 178, 0.92));
-  border-radius: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  background: linear-gradient(180deg, rgba(255, 248, 232, 0.96), rgba(255, 224, 178, 0.94));
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.95);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  padding: 8px 12px;
-  min-height: 52px;
-  transition: min-height 0.2s ease, padding 0.2s ease, opacity 0.2s ease, height 0.2s ease;
+  padding: 6px 12px;
+  min-height: 0;
+  box-sizing: border-box;
+  transition: opacity 0.2s ease;
 }
 
 .detail-thumb {

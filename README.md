@@ -6,9 +6,12 @@
 
 ## Layout DNA（對標 merge 爆款結構，原創主題／美術）
 
-- 頂 HUD（能量倒數）→ 顧客頭頂訂單泡 → 木棋盤主導 → **收合詳情條**
+- 頂 HUD（能量倒數）→ 顧客頭頂訂單泡 → 木棋盤主導 → **底詳情條（常駐 ~10%）**
 - 零件堆／渦輪浮喺棋盤邊（唔搶底欄）
-- 選中棋子先展開詳情（名／下一階／用途）
+- 未選中顯示提示；選中棋子顯示名／下一階／用途
 - 原創 SVG 載具＋顧客 bust；glossy CSS 棋子
 
 GitHub Pages：https://jansonlau0126.github.io/travel-merge/
+
+## Layout (P6)
+Aligned to merge-2 refs: HUD ~7.5%, customers ~14.5%, wood board ~68%, detail ~10%.
