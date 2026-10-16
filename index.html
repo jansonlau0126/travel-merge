@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#5eb8e8" />
+  <meta name="theme-color" content="#7ec8ea" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>環遊合併 — 載具進化幻想</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -20,34 +23,45 @@
       <div class="scene-glow" aria-hidden="true"></div>
     </div>
 
-    <!-- P2: compact icon-chip HUD -->
+    <!-- HUD: level pip + resource capsules + shop -->
     <header class="hud" aria-label="資源列">
       <div class="hud-level" title="等級">
-        <span class="hud-avatar" aria-hidden="true"></span>
+        <svg class="hud-star" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 1.6 14.9 7.7l6.6.7-4.9 4.4 1.4 6.4L12 16.1 6 19.2l1.4-6.4L2.5 8.4l6.6-.7z" />
+        </svg>
         <span class="hud-lv">1</span>
       </div>
       <div class="hud-chips">
         <div class="chip energy" title="能量">
-          <span class="chip-ico">⚡</span>
-          <div class="chip-stack">
-            <span id="energy-text" class="chip-val">100</span>
-            <span id="energy-timer" class="chip-timer">已滿</span>
-          </div>
-          <button type="button" id="btn-energy-debug" class="chip-plus" title="試玩加能量" aria-label="加能量">⊕</button>
+          <span class="chip-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M13.4 1.2 3.2 13.4h6.8l-1.4 9.4 11.6-14.2h-7.2z" /></svg>
+          </span>
+          <span id="energy-text" class="chip-val">100</span>
+          <span id="energy-timer" class="chip-timer is-full">已滿</span>
+          <button type="button" id="btn-energy-debug" class="chip-plus" title="試玩加能量" aria-label="加能量">+</button>
         </div>
         <div class="chip travel" title="旅費">
-          <span class="chip-ico">✈️</span>
+          <span class="chip-ico" aria-hidden="true"></span>
           <span id="travel-text" class="chip-val">0</span>
-          <button type="button" id="btn-travel-plus" class="chip-plus" title="商店（未實裝）" aria-label="加旅費">⊕</button>
+          <button type="button" id="btn-travel-plus" class="chip-plus" title="商店（未實裝）" aria-label="加旅費">+</button>
         </div>
         <div class="chip gems" title="寶石">
-          <span class="chip-ico">💎</span>
+          <span class="chip-ico" aria-hidden="true"></span>
           <span id="gems-text" class="chip-val">0</span>
-          <button type="button" id="btn-gems-plus" class="chip-plus" title="商店（未實裝）" aria-label="加寶石">⊕</button>
+          <button type="button" id="btn-gems-plus" class="chip-plus" title="商店（未實裝）" aria-label="加寶石">+</button>
         </div>
       </div>
-      <button type="button" class="hud-mute" id="btn-mute" title="靜音" aria-label="靜音" aria-pressed="false">🔊</button>
-      <button type="button" class="hud-shop" id="btn-shop" title="景點裝修" aria-label="景點裝修">🛒</button>
+      <button type="button" class="hud-chest" id="btn-shop" title="景點裝修" aria-label="景點裝修">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <ellipse cx="32" cy="58" rx="16" ry="3.5" fill="rgba(40,30,10,0.22)" />
+          <path d="M6 28 32 8l26 20v6H6z" fill="#e53935" />
+          <path d="M12 24.2 18 20.4V34h-6zM24 16.6 30 13.2V34h-6zM36 16.6 42 20.4V34h-6zM48 24.2 54 28V34h-6z" fill="#ffee58" />
+          <rect x="11" y="33" width="42" height="22" rx="3" fill="#fff8e7" stroke="#8d6e63" stroke-width="1.6" />
+          <rect x="16" y="37" width="9" height="8" rx="1.2" fill="#81d4fa" stroke="#4fc3f7" />
+          <rect x="39" y="37" width="9" height="8" rx="1.2" fill="#81d4fa" stroke="#4fc3f7" />
+          <rect x="27" y="40" width="10" height="15" rx="1.2" fill="#6d4c41" />
+        </svg>
+      </button>
     </header>
 
     <nav class="landmarks-slim" id="landmarks" aria-label="景點進度"></nav>
@@ -69,12 +83,28 @@
       </div>
     </section>
 
-    <!-- P4: detail strip — collapsed by default, expands on cell select -->
+    <!-- Bottom bar: inventory + info capsule + map -->
     <footer class="detail-strip" id="detail-strip" data-expanded="false" aria-label="選中物件詳情">
+      <button type="button" id="btn-park" class="util-btn" title="停車場（溢出暫存）" aria-label="停車場">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="#fff" d="M3.5 8.2 12 4.2l8.5 4v1.2L12 13.4 3.5 9.4z" />
+          <path fill="#e3f2fd" d="M3.5 10.6 12 14.6v6.2l-8.5-4z" />
+          <path fill="#fff" d="M12 14.6 20.5 10.6v6.2L12 20.8z" />
+          <path fill="none" stroke="#1565c0" stroke-width="0.6" d="M12 14.4v6.2" />
+        </svg>
+        <span class="park-badge">0</span>
+      </button>
       <div class="detail-inner" id="detail-bar">
         <div class="detail-thumb" id="detail-thumb" hidden></div>
         <p id="detail-text" class="detail-hint">點選棋盤物件睇詳情</p>
+        <button type="button" class="detail-mute" id="btn-mute" title="靜音" aria-label="靜音" aria-pressed="false">🔊</button>
       </div>
+      <button type="button" id="btn-map" class="util-btn" title="景點地圖" aria-label="景點地圖">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="#fff" d="M3.2 6.2 8.6 4.2l6.6 2.4 5.6-2.2v13.4l-5.6 2.2-6.6-2.4-5.4 2z" />
+          <path fill="none" stroke="#1e88e5" stroke-width="1.15" d="M8.6 4.4v13.2M15.2 6.6v13.2" />
+        </svg>
+      </button>
     </footer>
 
     <div id="fly-layer" class="fly-layer" aria-hidden="true"></div>
