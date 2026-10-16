@@ -86,6 +86,7 @@ const LANDMARKS = [
     decorCost: 25,
     before: "assets/landmarks/torii_before.svg",
     after: "assets/landmarks/torii_after.svg",
+    scenicBg: "assets/bg-torii.jpg",
   },
   {
     id: "pisa",
@@ -95,6 +96,7 @@ const LANDMARKS = [
     decorCost: 50,
     before: "assets/landmarks/pisa_before.svg",
     after: "assets/landmarks/pisa_after.svg",
+    scenicBg: "assets/bg-pisa.jpg",
   },
   {
     id: "bigben",
@@ -104,6 +106,7 @@ const LANDMARKS = [
     decorCost: 90,
     before: "assets/landmarks/bigben_before.svg",
     after: "assets/landmarks/bigben_after.svg",
+    scenicBg: "assets/bg-bigben.jpg",
   },
   {
     id: "liberty",
@@ -113,6 +116,7 @@ const LANDMARKS = [
     decorCost: 140,
     before: "assets/landmarks/liberty_before.svg",
     after: "assets/landmarks/liberty_after.svg",
+    scenicBg: "assets/bg-liberty.jpg",
   },
   {
     id: "eiffel",
@@ -1219,25 +1223,20 @@ function flashSceneUpgrade() {
   scene.classList.add("flash-upgrade");
 }
 
-/** Soft-blur app scenic: home default; eiffel when unlocked or selected */
+/** Soft-blur app scenic: use selected/viewed landmark scenicBg when present */
 function updateAppBackground() {
   const app = document.getElementById("app");
   const bgEl = document.getElementById("app-bg");
   if (!app) return;
-  const eiffelIdx = LANDMARKS.findIndex((l) => l.id === "eiffel");
-  const eiffelUnlocked = eiffelIdx >= 0 && (state.decorLevels[eiffelIdx] || 0) >= 1;
   const sel = Number.isInteger(state.selectedLandmark)
     ? state.selectedLandmark
     : state.unlockedLandmark;
-  // Home default; eiffel when that landmark is selected (and unlocked) or is the current furthest unlock
-  const useEiffel =
-    eiffelIdx >= 0 &&
-    eiffelUnlocked &&
-    (sel === eiffelIdx || (!Number.isInteger(state.selectedLandmark) && state.unlockedLandmark === eiffelIdx));
-  const key = useEiffel ? "eiffel" : "home";
+  const lm = LANDMARKS[sel] || LANDMARKS[0];
+  const scenic = (lm && lm.scenicBg) || LANDMARKS[0].scenicBg || "assets/bg-home.jpg";
+  const key = (lm && lm.scenicBg && lm.id) || "home";
   app.dataset.bg = key;
   if (bgEl) {
-    bgEl.style.backgroundImage = `url("${key === "eiffel" ? "assets/bg-eiffel.jpg" : "assets/bg-home.jpg"}")`;
+    bgEl.style.backgroundImage = `url("${scenic}")`;
   }
 }
 
@@ -1251,7 +1250,7 @@ function renderLandmarkScene() {
   scene.dataset.stage = String(stage);
   const before = document.getElementById("scene-before");
   const after = document.getElementById("scene-after");
-  // Prefer hi-res scenic for home / eiffel scene strip when available
+  // Prefer hi-res scenic for scene strip when available
   const scenic = lm.scenicBg;
   if (before) {
     before.style.backgroundImage = `url("${scenic || lm.before}")`;

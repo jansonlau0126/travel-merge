@@ -107,13 +107,9 @@ body {
       rgba(25, 35, 45, 0.38) 100%),
     radial-gradient(ellipse 90% 50% at 50% 30%, rgba(255, 220, 160, 0.12), transparent 60%);
 }
-#app[data-bg="eiffel"] .app-bg {
-  background-image: url("assets/bg-eiffel.jpg");
-  background-position: center 40%;
-  filter: blur(12px) saturate(1.1) brightness(0.9);
-}
-#app[data-bg="home"] .app-bg {
-  background-image: url("assets/bg-home.jpg");
+/* Per-landmark image is set inline via updateAppBackground(); keep soft blur + wash for all */
+#app[data-bg] .app-bg {
+  filter: blur(12px) saturate(1.08) brightness(0.92);
 }
 
 /* Scenic bg stays at z-index 0; existing HUD/board/overlay z-indexes unchanged */
