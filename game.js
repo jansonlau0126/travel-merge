@@ -30,6 +30,14 @@ const CONFIG = {
 };
 
 const CUSTOMER_ASSETS = [
+  "assets/customer1.png",
+  "assets/customer2.png",
+  "assets/customer3.png",
+  "assets/customer4.png",
+  "assets/customer5.png",
+  "assets/customer6.png",
+];
+const CUSTOMER_ASSETS_FALLBACK = [
   "assets/customers/c1.svg",
   "assets/customers/c2.svg",
   "assets/customers/c3.svg",
@@ -39,16 +47,16 @@ const CUSTOMER_ASSETS = [
 ];
 
 const CHAIN = [
-  { id: "skateboard", name: "滑板", emoji: "🛹", icon: "assets/vehicles/lv1_skateboard.svg" },
-  { id: "bicycle", name: "單車", emoji: "🚲", icon: "assets/vehicles/lv2_bicycle.svg" },
-  { id: "e_scooter", name: "電動滑板車", emoji: "🛴", icon: "assets/vehicles/lv3_e_scooter.svg" },
-  { id: "motorcycle", name: "電單車", emoji: "🏍️", icon: "assets/vehicles/lv4_motorcycle.svg" },
-  { id: "used_car", name: "二手私家車", emoji: "🚗", icon: "assets/vehicles/lv5_used_car.svg" },
-  { id: "van", name: "廂型車", emoji: "🚐", icon: "assets/vehicles/lv6_van.svg" },
-  { id: "coach", name: "長途巴士", emoji: "🚌", icon: "assets/vehicles/lv7_coach.svg" },
-  { id: "train", name: "列車", emoji: "🚆", icon: "assets/vehicles/lv8_train.svg" },
-  { id: "ferry", name: "渡輪", emoji: "⛴️", icon: "assets/vehicles/lv9_ferry.svg" },
-  { id: "airliner", name: "客機", emoji: "✈️", icon: "assets/vehicles/lv10_airliner.svg" },
+  { id: "skateboard", name: "滑板", emoji: "🛹", icon: "assets/lv1.png", iconFallback: "assets/vehicles/lv1_skateboard.svg" },
+  { id: "bicycle", name: "單車", emoji: "🚲", icon: "assets/lv2.png", iconFallback: "assets/vehicles/lv2_bicycle.svg" },
+  { id: "e_scooter", name: "電動滑板車", emoji: "🛴", icon: "assets/lv3.png", iconFallback: "assets/vehicles/lv3_e_scooter.svg" },
+  { id: "motorcycle", name: "電單車", emoji: "🏍️", icon: "assets/lv4.png", iconFallback: "assets/vehicles/lv4_motorcycle.svg" },
+  { id: "used_car", name: "二手私家車", emoji: "🚗", icon: "assets/lv5.png", iconFallback: "assets/vehicles/lv5_used_car.svg" },
+  { id: "van", name: "廂型車", emoji: "🚐", icon: "assets/lv6.png", iconFallback: "assets/vehicles/lv6_van.svg" },
+  { id: "coach", name: "長途巴士", emoji: "🚌", icon: "assets/lv7.png", iconFallback: "assets/vehicles/lv7_coach.svg" },
+  { id: "train", name: "列車", emoji: "🚆", icon: "assets/lv8.png", iconFallback: "assets/vehicles/lv8_train.svg" },
+  { id: "ferry", name: "渡輪", emoji: "⛴️", icon: "assets/lv9.png", iconFallback: "assets/vehicles/lv9_ferry.svg" },
+  { id: "airliner", name: "客機", emoji: "✈️", icon: "assets/lv10.png", iconFallback: "assets/vehicles/lv10_airliner.svg" },
 ];
 
 const LANDMARKS = [
@@ -113,7 +121,7 @@ const GENERATORS = [
   {
     id: "parts",
     name: "零件堆",
-    icon: "assets/generator.svg",
+    icon: "assets/gen-parts.png", iconFallback: "assets/generator.svg",
     unlockLandmark: 0,
     boardSlot: 49, // row7 col0
     spawnTable: [
@@ -128,7 +136,7 @@ const GENERATORS = [
   {
     id: "garage",
     name: "修車鋪",
-    icon: "assets/generator_garage.svg",
+    icon: "assets/gen-shop.png", iconFallback: "assets/generator_garage.svg",
     unlockLandmark: 0, // 開局就有（同零件堆唔同掉落表）
     boardSlot: 50, // row7 col1
     spawnTable: [
@@ -145,7 +153,7 @@ const GENERATORS = [
   {
     id: "luggage",
     name: "行李倉",
-    icon: "assets/generator_luggage.svg",
+    icon: "assets/gen-luggage.png", iconFallback: "assets/generator_luggage.svg",
     unlockLandmark: 3, // 大笨鐘
     boardSlot: 51, // row7 col2
     spawnTable: [
@@ -346,6 +354,19 @@ function toggleMute() {
   if (!state.muted) AudioFX.merge();
 }
 
+
+/** Prefer PNG art; fall back to SVG (or emoji span) if image missing. */
+function artImg(src, fallback, emoji, attrs = "") {
+  const primary = src || fallback || "";
+  const fb = fallback && fallback !== primary ? fallback : "";
+  const onerr = fb
+    ? ` onerror="this.onerror=null;this.src='${fb}';"`
+    : emoji
+      ? ` onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${emoji}',className:'emoji-fallback'}));"`
+      : "";
+  return `<img ${attrs} src="${primary}" alt="" draggable="false"${onerr} />`;
+}
+
 function vehicle(level) {
   return CHAIN[level - 1];
 }
@@ -475,17 +496,22 @@ function syncGeneratorsToBoard() {
 }
 
 function faceForOrder(order) {
-  if (order._face) return order._face;
-  let h = 0;
-  for (let i = 0; i < order.id.length; i++) h = (h + order.id.charCodeAt(i) * (i + 1)) % CUSTOMER_ASSETS.length;
-  order._face = CUSTOMER_ASSETS[h];
+  if (!order._face) {
+    let h = 0;
+    for (let i = 0; i < order.id.length; i++) h = (h + order.id.charCodeAt(i) * (i + 1)) % CUSTOMER_ASSETS.length;
+    order._face = CUSTOMER_ASSETS[h];
+    order._faceFallback = CUSTOMER_ASSETS_FALLBACK[h];
+  } else if (!order._faceFallback) {
+    const idx = CUSTOMER_ASSETS.indexOf(order._face);
+    order._faceFallback = CUSTOMER_ASSETS_FALLBACK[idx >= 0 ? idx : 0];
+  }
   return order._face;
 }
 
 function vehicleIconHtml(level, className) {
   const v = vehicle(level);
-  const cls = className ? ` class="${className}"` : "";
-  return `<img${cls} src="${v.icon}" alt="${v.name}" draggable="false" />`;
+  const cls = className ? `class="${className}"` : "";
+  return artImg(v.icon, v.iconFallback, v.emoji, `${cls} alt="${v.name}"`);
 }
 
 function generatorCost() {
@@ -698,7 +724,7 @@ function animateFlyToCustomer(boardIndices, customerEl) {
 
       const flyer = document.createElement("div");
       flyer.className = "fly-item";
-      flyer.innerHTML = `<img src="${v.icon}" alt="" />`;
+      flyer.innerHTML = artImg(v.icon, v.iconFallback, v.emoji);
       flyer.style.left = rect.left + "px";
       flyer.style.top = rect.top + "px";
       flyer.style.width = Math.max(28, rect.width) + "px";
@@ -1108,7 +1134,7 @@ function renderDock() {
     const disabled = state.energy < cost ? "disabled" : "";
     html += `
       <button type="button" class="dock-btn gen gen-${gen.id}" data-gen="${gen.id}" title="${gen.name}" ${disabled}>
-        <img class="dock-ico" src="${gen.icon}" alt="" width="36" height="36" />
+        ${artImg(gen.icon, gen.iconFallback, "🔧", 'class="dock-ico" width="36" height="36"')}
         <span class="cost-pill">⚡${cost}</span>
         <span class="dock-label">${gen.name}</span>
       </button>
@@ -1120,7 +1146,7 @@ function renderDock() {
     const lm = LANDMARKS[nextLocked.unlockLandmark];
     html += `
       <button type="button" class="dock-btn gen locked" data-gen-locked="${nextLocked.id}" title="解鎖 ${lm.name} 後開${nextLocked.name}">
-        <img class="dock-ico" src="${nextLocked.icon}" alt="" width="36" height="36" />
+        ${artImg(nextLocked.icon, nextLocked.iconFallback, "🔒", 'class="dock-ico" width="36" height="36"')}
         <span class="cost-pill lock-pill">🔒</span>
         <span class="dock-label">${nextLocked.name}</span>
       </button>
@@ -1200,7 +1226,7 @@ function renderOrders() {
         ${bubbleItems.join("")}
         ${bonusHtml}
       </div>
-      <div class="customer-face"><img src="${face}" alt="" draggable="false" /></div>
+      <div class="customer-face">${artImg(face, order._faceFallback || "", "🙂")}</div>
       <div class="customer-reward">✈️${bonus ? Math.round(order.reward * CONFIG.BONUS_MULT) : order.reward}</div>
       ${almostHtml}
     `;
@@ -1253,11 +1279,11 @@ function expandDetail(levelOrNull, html, genIcon) {
     const v = vehicle(levelOrNull);
     thumb.hidden = false;
     thumb.className = "detail-thumb item lv-" + levelOrNull;
-    thumb.innerHTML = `<img src="${v.icon}" alt="${v.name}" />`;
+    thumb.innerHTML = artImg(v.icon, v.iconFallback, v.emoji, `alt="${v.name}"`);
   } else if (genIcon) {
     thumb.hidden = false;
     thumb.className = "detail-thumb gen-thumb";
-    thumb.innerHTML = `<img src="${genIcon}" alt="" />`;
+    thumb.innerHTML = artImg(genIcon, "", "🔧");
   } else {
     thumb.hidden = true;
     thumb.innerHTML = "";
@@ -1312,7 +1338,7 @@ function renderBoard() {
       el.dataset.index = String(i);
       el.dataset.gen = gen.id;
       el.title = `${gen.name}（撳一下產出）`;
-      el.innerHTML = `<img class="ico" src="${gen.icon}" alt="${gen.name}" draggable="false" /><span class="lv gen-lv">${gen.name}</span>`;
+      el.innerHTML = `${artImg(gen.icon, gen.iconFallback, "🔧", `class="ico" alt="${gen.name}"`)}<span class="lv gen-lv">${gen.name}</span>`;
       cell.appendChild(el);
     } else if (isItemCell(item)) {
       const v = vehicle(item.level);
@@ -1321,7 +1347,7 @@ function renderBoard() {
       el.draggable = true;
       el.dataset.index = String(i);
       el.title = `${v.name} (Lv${item.level})`;
-      el.innerHTML = `<img class="ico" src="${v.icon}" alt="${v.name}" draggable="false" /><span class="lv">Lv${item.level}</span>`;
+      el.innerHTML = `${artImg(v.icon, v.iconFallback, v.emoji, `class="ico" alt="${v.name}"`)}<span class="lv">Lv${item.level}</span>`;
       cell.appendChild(el);
     }
     boardEl.appendChild(cell);
