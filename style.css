@@ -5,20 +5,23 @@
 }
 
 :root {
-  /* Warm casual-merge palette — art craft pass */
-  --sky-top: #5eb8e8;
-  --sky-mid: #9ad4f2;
-  --sky-bot: #c8eaf8;
+  /* Gossip Harbor–inspired sandy casual merge palette */
+  --sky-top: #6ec4ef;
+  --sky-mid: #a8daf5;
+  --sky-bot: #d4eef9;
   --grass: #78c888;
   --grass-deep: #4fa05a;
-  --wood: #c49a5c;
-  --wood-dark: #7a4e28;
-  --wood-mid: #a87840;
-  --wood-cell: #f3e2c0;
-  --wood-cell-alt: #ead4a8;
-  --wood-line: #c9a06a;
-  --wood-inset: rgba(90, 50, 20, 0.28);
-  --hud-bg: linear-gradient(180deg, #ffffff 0%, #fff8ec 55%, #ffe9c8 100%);
+  --wood: #d4b48a;
+  --wood-dark: #8a6340;
+  --wood-mid: #c9a06e;
+  --wood-cell: #f0e0c4;
+  --wood-cell-alt: #e8d4b0;
+  --wood-line: #d0b488;
+  --wood-inset: rgba(110, 70, 35, 0.22);
+  --sand: #e8d4b0;
+  --sand-deep: #c9a878;
+  --sand-light: #f6ead4;
+  --hud-bg: linear-gradient(180deg, #fffef9 0%, #fff6e6 55%, #ffe9c4 100%);
   --text: #3a2414;
   --text-strong: #2a180c;
   --muted: #8b6b52;
@@ -26,15 +29,15 @@
   --good-bright: #8ef08e;
   --energy: #ffc107;
   --gem: #d500f9;
-  --shadow-soft: 0 2px 8px rgba(40, 20, 8, 0.2);
-  --shadow-chip: 0 3px 0 rgba(180, 120, 60, 0.18), 0 3px 8px rgba(40, 20, 8, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.98);
+  --shadow-soft: 0 2px 8px rgba(40, 20, 8, 0.18);
+  --shadow-chip: 0 2px 0 rgba(120, 80, 40, 0.2), 0 3px 8px rgba(40, 20, 8, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.98);
   --tile-shadow:
-    0 4px 0 rgba(90, 50, 20, 0.2),
-    0 6px 12px rgba(40, 20, 8, 0.22),
-    inset 0 2px 0 rgba(255, 255, 255, 0.92),
-    inset 0 -3px 6px rgba(140, 80, 30, 0.14);
+    0 3px 0 rgba(120, 80, 40, 0.16),
+    0 5px 10px rgba(40, 20, 8, 0.16),
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 4px rgba(160, 110, 50, 0.12);
   --radius-chip: 999px;
-  --radius-tile: 12px;
+  --radius-tile: 14px;
   --press: cubic-bezier(0.2, 0.9, 0.3, 1);
   --space-1: 4px;
   --space-2: 8px;
@@ -56,11 +59,11 @@ body {
   overflow: hidden;
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
-  background: #3d5566;
+  background: #4a7a92;
   touch-action: manipulation;
 }
 
-/* Full-bleed mobile — soft-blur scenic bg behind UI */
+/* Full-bleed immersive mobile — scenic blur, no cream phone mock */
 #app {
   max-width: 430px;
   margin: 0 auto;
@@ -73,7 +76,7 @@ body {
     "customers"
     "board"
     "detail";
-  background: #5a6e7a;
+  background: transparent;
   position: relative;
   overflow: hidden;
   padding-left: var(--safe-l);
@@ -101,11 +104,11 @@ body {
   inset: 0;
   background:
     linear-gradient(180deg,
-      rgba(40, 55, 70, 0.28) 0%,
-      rgba(30, 40, 50, 0.18) 22%,
-      rgba(20, 30, 40, 0.22) 55%,
-      rgba(25, 35, 45, 0.38) 100%),
-    radial-gradient(ellipse 90% 50% at 50% 30%, rgba(255, 220, 160, 0.12), transparent 60%);
+      rgba(80, 140, 180, 0.22) 0%,
+      rgba(60, 110, 140, 0.12) 22%,
+      rgba(40, 80, 110, 0.14) 55%,
+      rgba(30, 90, 120, 0.28) 100%),
+    radial-gradient(ellipse 90% 50% at 50% 28%, rgba(255, 230, 170, 0.16), transparent 60%);
 }
 /* Per-landmark image is set inline via updateAppBackground(); keep soft blur + wash for all */
 #app[data-bg] .app-bg {
@@ -138,7 +141,7 @@ body {
   height: 40px;
   border-radius: 50%;
   background:
-    url("assets/customer1.png") center 20% / 115% no-repeat,
+    url("assets/customer1.png") center 12% / 130% no-repeat,
     linear-gradient(145deg, #fff, #ffe0c0);
   border: 3px solid #fff;
   box-shadow:
@@ -181,8 +184,10 @@ body {
   border-radius: var(--radius-chip);
   padding: 3px 4px 3px 3px;
   box-shadow: var(--shadow-chip);
-  border: 2px solid rgba(255, 255, 255, 0.98);
-  min-height: 34px;
+  border: 2px solid #5d4037;
+  outline: 1.5px solid rgba(255, 255, 255, 0.95);
+  outline-offset: -3.5px;
+  min-height: 32px;
   flex: 1;
   min-width: 0;
   position: relative;
@@ -454,16 +459,14 @@ body {
 .bubble {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, transparent 45%),
-    linear-gradient(180deg, #ffffff 0%, #fffaf3 65%, #ffe8c8 100%);
-  border-radius: 18px;
+    linear-gradient(180deg, #ffffff 0%, #fffdf8 70%, #fff6e8 100%);
+  border-radius: 16px;
   padding: 6px 8px;
   box-shadow:
-    0 5px 14px rgba(40, 20, 8, 0.26),
-    0 2px 0 rgba(180, 120, 60, 0.12),
-    0 1px 0 rgba(255, 255, 255, 0.98) inset,
-    0 -2px 4px rgba(180, 120, 60, 0.1) inset;
-  border: 2.5px solid #fff;
+    0 4px 12px rgba(30, 40, 55, 0.22),
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 2px 0 rgba(160, 110, 60, 0.08);
+  border: 2px solid #fff;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -484,8 +487,8 @@ body {
   width: 0;
   height: 0;
   border: 7px solid transparent;
-  border-top-color: #fffaf3;
-  filter: drop-shadow(0 2px 1px rgba(40, 20, 8, 0.12));
+  border-top-color: #fffdf8;
+  filter: drop-shadow(0 2px 1px rgba(30, 40, 55, 0.12));
 }
 
 .bubble-ready-check {
@@ -530,14 +533,13 @@ body {
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, transparent 42%),
-    linear-gradient(160deg, #fffef8 0%, #ffe8c0 55%, #f0c890 100%);
-  border: 1.5px solid rgba(255, 255, 255, 0.98);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, transparent 45%),
+    linear-gradient(160deg, #f8ecd4, #ebdab8);
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
   box-shadow:
-    0 3px 0 rgba(120, 70, 30, 0.15),
-    0 3px 6px rgba(80, 40, 10, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 2px rgba(160, 90, 30, 0.12);
+    0 2px 0 rgba(140, 100, 55, 0.14),
+    0 2px 5px rgba(40, 30, 15, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .bubble-item img {
@@ -590,10 +592,10 @@ body {
 }
 
 .customer-face img {
-  width: 100%;
-  height: 100%;
+  width: 118%;
+  height: 118%;
   object-fit: cover;
-  object-position: center center;
+  object-position: center 18%;
   pointer-events: none;
 }
 
@@ -667,18 +669,18 @@ body {
   z-index: 3;
   position: relative;
 }
-/* Extra soft veil so scenic bg stays out of focus under the wood board */
+/* Soft sandy veil under board — keeps scenic blur readable */
 .board-stage::before {
   content: "";
   position: absolute;
   inset: 2% 4% 6%;
   border-radius: 22px;
-  background: rgba(255, 248, 230, 0.14);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(232, 214, 176, 0.12);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   pointer-events: none;
   z-index: 0;
-  box-shadow: inset 0 0 40px rgba(255, 240, 200, 0.08);
+  box-shadow: inset 0 0 36px rgba(255, 240, 200, 0.06);
 }
 .board-stage > .board,
 .board-stage > .board-dock {
@@ -692,45 +694,33 @@ body {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-template-rows: repeat(8, minmax(0, 1fr));
-  gap: 4px;
-  padding: 9px;
-  /* Deep wood frame + grain + rim highlight */
+  gap: 5px;
+  padding: 10px;
+  /* Warm sandy / stone board — Gossip Harbor casual */
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(255, 230, 180, 0.18), transparent 50%),
-    radial-gradient(ellipse at 80% 80%, rgba(60, 30, 10, 0.2), transparent 45%),
-    repeating-linear-gradient(
-      92deg,
-      transparent 0 10px,
-      rgba(70, 40, 15, 0.07) 10px 11px,
-      transparent 11px 22px,
-      rgba(255, 220, 160, 0.06) 22px 23px
-    ),
-    repeating-linear-gradient(
-      0deg,
-      transparent 0 16px,
-      rgba(60, 30, 10, 0.045) 16px 17px
-    ),
-    linear-gradient(155deg, #d4a86a 0%, #b88848 28%, #9a6838 62%, #7e542c 100%);
-  border-radius: 16px;
-  border: 4px solid #5c3a1e;
+    radial-gradient(ellipse at 28% 18%, rgba(255, 248, 230, 0.35), transparent 55%),
+    radial-gradient(ellipse at 78% 82%, rgba(160, 120, 70, 0.14), transparent 50%),
+    linear-gradient(160deg, #e8d2a8 0%, #d9bc8e 42%, #c9a878 100%);
+  border-radius: 18px;
+  border: 3px solid #a07848;
   box-shadow:
-    inset 0 3px 14px rgba(40, 18, 6, 0.45),
-    inset 0 -2px 0 rgba(255, 210, 140, 0.22),
-    inset 0 0 0 1px rgba(255, 220, 160, 0.12),
-    0 8px 22px rgba(0, 0, 0, 0.32),
-    0 2px 0 rgba(255, 220, 160, 0.2);
+    inset 0 2px 8px rgba(255, 245, 220, 0.45),
+    inset 0 -3px 8px rgba(120, 80, 40, 0.18),
+    inset 0 0 0 1px rgba(255, 240, 200, 0.35),
+    0 8px 20px rgba(20, 40, 55, 0.28),
+    0 2px 0 rgba(255, 235, 200, 0.35);
   position: relative;
 }
 
 .board::before {
   content: "";
   position: absolute;
-  inset: 4px;
-  border-radius: 11px;
+  inset: 5px;
+  border-radius: 13px;
   pointer-events: none;
   box-shadow:
-    inset 0 0 0 1.5px rgba(255, 220, 160, 0.22),
-    inset 0 0 0 3px rgba(90, 50, 20, 0.12);
+    inset 0 0 0 1px rgba(255, 245, 220, 0.4),
+    inset 0 0 0 2px rgba(160, 110, 60, 0.1);
   z-index: 0;
 }
 
@@ -740,58 +730,60 @@ body {
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 240, 200, 0.12) 0%, transparent 18%, transparent 85%, rgba(40, 20, 8, 0.12) 100%);
+  background: linear-gradient(180deg, rgba(255, 250, 235, 0.2) 0%, transparent 20%, transparent 82%, rgba(100, 70, 35, 0.1) 100%);
   z-index: 0;
 }
 
 .cell {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, transparent 42%),
-    linear-gradient(160deg, #f7e8c8 0%, var(--wood-cell) 100%);
-  border: 1px solid rgba(160, 110, 55, 0.55);
-  border-radius: 8px;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, transparent 48%),
+    linear-gradient(165deg, #f8ecd4 0%, #ebdab8 100%);
+  border: 1.5px solid rgba(175, 135, 80, 0.42);
+  border-radius: 11px;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   user-select: none;
   touch-action: none;
+  /* Soft raised glossy pad */
   box-shadow:
-    inset 0 2px 2px rgba(255, 255, 255, 0.65),
-    inset 0 -2px 3px rgba(140, 90, 40, 0.16),
-    0 1px 0 rgba(90, 50, 20, 0.08);
+    0 2px 0 rgba(140, 100, 55, 0.18),
+    0 3px 6px rgba(80, 50, 20, 0.12),
+    inset 0 2px 3px rgba(255, 255, 255, 0.85),
+    inset 0 -2px 4px rgba(160, 120, 60, 0.14);
   z-index: 1;
   transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
 }
 
 .cell:nth-child(even) {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, transparent 42%),
-    linear-gradient(160deg, #f0dcb0 0%, var(--wood-cell-alt) 100%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, transparent 48%),
+    linear-gradient(165deg, #f0e0c0 0%, #e2ceaa 100%);
 }
 
 .cell.drag-over {
   border-color: #ff8a65;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, transparent 40%),
     #fff3e0;
-  box-shadow: 0 0 0 2.5px rgba(255, 138, 101, 0.6), inset 0 0 10px rgba(255, 138, 101, 0.22);
+  box-shadow: 0 0 0 2.5px rgba(255, 138, 101, 0.55), inset 0 0 10px rgba(255, 138, 101, 0.2);
   transform: scale(1.03);
 }
 
 .cell.selected {
   border-color: #ffc107;
   box-shadow:
-    inset 0 0 0 2.5px rgba(255, 193, 7, 0.8),
-    0 0 12px rgba(255, 193, 7, 0.5),
-    inset 0 2px 2px rgba(255, 255, 255, 0.5);
+    inset 0 0 0 2.5px rgba(255, 193, 7, 0.75),
+    0 0 12px rgba(255, 193, 7, 0.45),
+    inset 0 2px 2px rgba(255, 255, 255, 0.55);
 }
 
-/* ========== Glossy merge tiles (art craft) ========== */
+/* ========== Merge pieces — transparent so 3D icons sit on sandy pads ========== */
 .item {
-  width: 90%;
-  height: 90%;
+  width: 94%;
+  height: 94%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -800,67 +792,51 @@ body {
   cursor: grab;
   line-height: 1;
   position: relative;
-  border: 2px solid rgba(255, 255, 255, 0.98);
-  box-shadow: var(--tile-shadow);
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 44%),
-    linear-gradient(160deg, #fffef8 0%, #ffe8c8 52%, #efc090 100%);
-  transition: transform 0.12s var(--press), box-shadow 0.12s ease, filter 0.12s ease;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
+  background: transparent;
+  transition: transform 0.12s var(--press), filter 0.12s ease;
 }
 
 .item::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(180, 120, 60, 0.22);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, transparent 40%);
-  z-index: 0;
+  content: none;
 }
 
 .item:hover {
-  filter: brightness(1.05);
-  transform: translateY(-2px);
-  box-shadow:
-    0 6px 0 rgba(90, 50, 20, 0.18),
-    0 8px 16px rgba(40, 20, 8, 0.24),
-    inset 0 2px 0 rgba(255, 255, 255, 0.95);
+  filter: brightness(1.04);
+  transform: translateY(-2px) scale(1.03);
 }
 
 .item:active {
   cursor: grabbing;
-  transform: scale(0.93);
-  box-shadow:
-    0 1px 0 rgba(90, 50, 20, 0.2),
-    0 2px 4px rgba(40, 20, 8, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transform: scale(0.92);
 }
 
 .item .ico {
-  width: 78%;
-  height: 68%;
+  width: 92%;
+  height: 86%;
   object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 3px 3px rgba(40, 25, 10, 0.28));
   z-index: 1;
   image-rendering: -webkit-optimize-contrast;
 }
 
 .item .lv {
-  margin-top: 0;
+  margin-top: -2px;
   font-size: 0.4rem;
-  color: #5d4037;
+  color: #fff;
   font-weight: 900;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 248, 230, 0.85));
+  background: linear-gradient(180deg, #66bb6a, #2e7d32);
   padding: 0 5px;
   border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 1px 2px rgba(90, 50, 20, 0.15);
-  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 2px rgba(20, 40, 20, 0.35);
+  z-index: 2;
   line-height: 1.35;
   letter-spacing: 0.02em;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.25);
 }
 
 .item.merging {
@@ -887,61 +863,22 @@ body {
   z-index: 3;
 }
 
-/* Per-level rim tint — richer candy pads */
-.item.lv-1 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, transparent 42%),
-    linear-gradient(160deg, #ffe0b2, #ffab91 55%, #ff8a65);
-}
-.item.lv-2 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, transparent 42%),
-    linear-gradient(160deg, #bbdefb, #64b5f6 55%, #42a5f5);
-}
-.item.lv-3 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, transparent 42%),
-    linear-gradient(160deg, #b2ebf2, #4dd0e1 55%, #26c6da);
-}
-.item.lv-4 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 42%),
-    linear-gradient(160deg, #ffcdd2, #ef9a9a 55%, #ef5350);
-}
-.item.lv-5 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 42%),
-    linear-gradient(160deg, #c5cae9, #7986cb 55%, #5c6bc0);
-}
-.item.lv-6 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 42%),
-    linear-gradient(160deg, #c8e6c9, #81c784 55%, #66bb6a);
-}
-.item.lv-7 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 42%),
-    linear-gradient(160deg, #ffe0b2, #ffb74d 55%, #ff9800);
-}
-.item.lv-8 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 42%),
-    linear-gradient(160deg, #b3e5fc, #4fc3f7 55%, #0288d1);
-}
+/* Per-level: transparent pads — icons carry the color; soft glow on high tiers */
+.item.lv-1,
+.item.lv-2,
+.item.lv-3,
+.item.lv-4,
+.item.lv-5,
+.item.lv-6,
+.item.lv-7,
+.item.lv-8,
 .item.lv-9 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 42%),
-    linear-gradient(160deg, #b2dfdb, #4db6ac 55%, #00897b);
+  background: transparent;
+  box-shadow: none;
 }
 .item.lv-10 {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, transparent 42%),
-    linear-gradient(160deg, #fffde7, #ffe082 40%, #90a4ae 78%, #ffd54f);
-  box-shadow:
-    0 4px 0 rgba(90, 50, 20, 0.18),
-    0 0 14px rgba(255, 213, 79, 0.55),
-    0 6px 12px rgba(40, 20, 8, 0.2),
-    inset 0 2px 0 rgba(255, 255, 255, 0.95);
+  background: transparent;
+  filter: drop-shadow(0 0 6px rgba(255, 213, 79, 0.45));
 }
 
 @keyframes pop {
@@ -1095,27 +1032,21 @@ body {
 }
 
 .cell.has-gen {
-  background: linear-gradient(160deg, #fff8e1, #ffe0b2) !important;
-  border-color: #ffb300;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.5) 0%, transparent 45%),
+    linear-gradient(160deg, #fff6d8, #f0dca0) !important;
+  border-color: #e0a84a;
 }
 
 .item.generator-tile {
   cursor: pointer;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 40%),
-    linear-gradient(160deg, #ffe082, #ffb300) !important;
+  background: transparent !important;
+  border-radius: 12px;
 }
 
-.item.generator-tile.gen-garage {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 40%),
-    linear-gradient(160deg, #90caf9, #1976d2) !important;
-}
-
+.item.generator-tile.gen-garage,
 .item.generator-tile.gen-luggage {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, transparent 40%),
-    linear-gradient(160deg, #a5d6a7, #43a047) !important;
+  background: transparent !important;
 }
 
 .item.generator-tile .gen-lv {
@@ -1158,14 +1089,13 @@ body {
   height: 100%;
   max-height: 100%;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, transparent 42%),
-    linear-gradient(180deg, rgba(255, 252, 245, 0.98), rgba(255, 228, 180, 0.96));
-  border-radius: 18px;
+    linear-gradient(180deg, #ffffff 0%, #fff8ec 55%, #ffe9c8 100%);
+  border-radius: 20px;
   border: 2.5px solid rgba(255, 255, 255, 0.98);
   box-shadow:
-    0 4px 0 rgba(160, 100, 40, 0.12),
-    0 5px 14px rgba(40, 20, 8, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    0 3px 0 rgba(140, 95, 45, 0.14),
+    0 5px 14px rgba(20, 40, 55, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98);
   padding: 6px 14px;
   min-height: 0;
   box-sizing: border-box;
@@ -1185,12 +1115,15 @@ body {
   height: 42px;
   border-radius: 11px;
   border: 1.5px solid #fff;
-  box-shadow: var(--tile-shadow);
+  box-shadow:
+    0 2px 0 rgba(140, 100, 55, 0.14),
+    0 3px 6px rgba(40, 30, 15, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: linear-gradient(160deg, #fffef5, #ffe8c8);
+  background: linear-gradient(160deg, #f8ecd4, #ebdab8);
 }
 
 .detail-thumb img {
@@ -1847,7 +1780,7 @@ body {
 }
 .customer-face img {
   object-fit: cover;
-  object-position: center center;
+  object-position: center 18%;
   border-radius: 0;
 }
 .generator-tile .ico {
