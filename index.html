@@ -7,80 +7,69 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="phone-frame">
-    <div id="app">
-      <header class="top-bar">
-        <div class="brand">
-          <h1>環遊合併</h1>
-          <p class="tagline">載具越強 · 去得越遠</p>
+  <div id="app">
+    <!-- P1: thin top HUD (~8%) -->
+    <header class="hud" aria-label="資源列">
+      <div class="hud-level" title="等級">
+        <span class="hud-avatar">🧳</span>
+        <span class="hud-lv">1</span>
+      </div>
+      <div class="hud-chips">
+        <div class="chip energy" title="能量">
+          <span class="chip-ico">⚡</span>
+          <span id="energy-text" class="chip-val">100</span>
+          <span id="energy-timer" class="chip-timer">已滿</span>
+          <button type="button" id="btn-energy-debug" class="chip-plus" title="試玩加能量">+</button>
         </div>
-        <div class="resources">
-          <div class="pill energy" title="能量">
-            <span class="pill-icon energy-bolt">⚡</span>
-            <div class="pill-body">
-              <span id="energy-text" class="pill-value">100/100</span>
-              <span id="energy-timer" class="pill-sub">已滿</span>
-            </div>
-          </div>
-          <div class="pill travel" title="旅費">
-            <span class="pill-icon">✈️</span>
-            <div class="pill-body">
-              <span id="travel-text" class="pill-value">0</span>
-              <span class="pill-sub">旅費</span>
-            </div>
-          </div>
-          <div class="pill gems" title="寶石（裝飾）">
-            <span class="pill-icon">💎</span>
-            <div class="pill-body">
-              <span class="pill-value">0</span>
-              <span class="pill-sub">寶石</span>
-            </div>
-          </div>
-          <button type="button" id="btn-energy-debug" class="btn-debug" title="試玩加能量">+10</button>
+        <div class="chip travel" title="旅費">
+          <span class="chip-ico">✈️</span>
+          <span id="travel-text" class="chip-val">0</span>
         </div>
-      </header>
+        <div class="chip gems" title="寶石">
+          <span class="chip-ico">💎</span>
+          <span class="chip-val">0</span>
+        </div>
+      </div>
+      <button type="button" class="hud-shop" title="商店（未實裝）" aria-label="商店">🛒</button>
+    </header>
 
-      <section class="passport" aria-label="護照印章進度">
-        <div class="passport-label">🛂 護照印章</div>
-        <div class="landmarks" id="landmarks"></div>
-      </section>
+    <!-- Slim landmark progress (not cream cards) -->
+    <nav class="landmarks-slim" id="landmarks" aria-label="景點進度"></nav>
 
-      <section class="orders-strip">
-        <div class="orders-head">
-          <h2>旅客訂單</h2>
-          <span class="orders-hint">交單賺旅費</span>
-        </div>
-        <div id="orders" class="orders"></div>
-      </section>
+    <!-- P0: customers + bubbles ABOVE heads (~15%) -->
+    <section class="customers" aria-label="旅客訂單">
+      <div id="orders" class="customer-row"></div>
+      <div class="counter-ledge" aria-hidden="true"></div>
+    </section>
 
-      <section class="board-wrap">
-        <div class="board-toolbar">
-          <button type="button" id="generator" class="generator" title="零件堆">
-            <span class="gen-emoji">🧰</span>
-            <span class="gen-label">零件堆</span>
-            <span id="gen-cost-badge" class="cost-badge yellow">⚡1</span>
-          </button>
-          <button type="button" id="btn-boost" class="boost-toggle" aria-pressed="false" title="渦輪：耗雙倍能量，出更高階">
-            <span class="boost-icon">🚀</span>
-            <span class="boost-text">
-              <strong>x2 渦輪</strong>
-              <small id="boost-hint">關閉</small>
-            </span>
-          </button>
-        </div>
-        <p class="tip" id="board-hint">拖兩個相同載具合併，或點一個再點另一個。</p>
-        <div id="board" class="board" role="grid" aria-label="7×8 合併棋盤"></div>
-      </section>
+    <!-- P1: wood board dominates (~60%) -->
+    <section class="board-stage">
+      <div id="board" class="board" role="grid" aria-label="7×8 合併棋盤"></div>
+    </section>
 
-      <div id="toast" class="toast" hidden></div>
-      <div id="win-overlay" class="overlay" hidden>
-        <div class="win-card">
-          <div class="win-emoji">🗼✈️</div>
-          <h2>鐵塔首航成功！</h2>
-          <p>第一章完結 — 載具進化幻想帶你去到埃菲爾鐵塔。</p>
-          <p class="win-sub">下一程：萬里長城、金字塔、悉尼歌劇院……（未實裝）</p>
-          <button type="button" id="btn-win-close" class="btn-candy">繼續玩</button>
-        </div>
+    <!-- Minimal bottom (~10%) -->
+    <footer class="footer">
+      <button type="button" id="generator" class="footer-btn gen" title="零件堆">
+        <span class="footer-emoji">🧰</span>
+        <span id="gen-cost-badge" class="cost-pill">⚡1</span>
+      </button>
+      <div class="detail-bar" id="detail-bar">
+        <p id="detail-text">點選棋盤物件睇詳情</p>
+      </div>
+      <button type="button" id="btn-boost" class="footer-btn boost" aria-pressed="false" title="渦輪：耗雙倍能量，出更高階">
+        <span class="footer-emoji">🚀</span>
+        <span id="boost-hint" class="boost-badge">x1</span>
+      </button>
+    </footer>
+
+    <div id="toast" class="toast" hidden></div>
+    <div id="win-overlay" class="overlay" hidden>
+      <div class="win-card">
+        <div class="win-emoji">🗼✈️</div>
+        <h2>鐵塔首航成功！</h2>
+        <p>第一章完結 — 載具進化幻想帶你去到埃菲爾鐵塔。</p>
+        <p class="win-sub">下一程：萬里長城、金字塔、悉尼歌劇院……（未實裝）</p>
+        <button type="button" id="btn-win-close" class="btn-candy">繼續玩</button>
       </div>
     </div>
   </div>

@@ -1,22 +1,22 @@
 /* ============================================================
-   環遊合併 — Prototype (Gossip Harbor–inspired UX)
-   Balance knobs (tune here)
+   環遊合併 — Prototype (Travel Town / Gossip Harbor layout DNA)
+   P0: customer row + bubbles above heads
+   P1: wood board dominates vertical space
    ============================================================ */
 const CONFIG = {
   COLS: 7,
   ROWS: 8,
   ENERGY_START: 100,
   ENERGY_MAX: 100,
-  ENERGY_REGEN_MS: 120000, // +1 every 2 min (Gossip Harbor–like)
+  ENERGY_REGEN_MS: 120000,
   GENERATOR_COST: 1,
   BOOST_COST: 2,
   LV2_SPAWN_CHANCE: 0.18,
-  BOOST_LV3_CHANCE: 0.12, // when boost on: mostly Lv2, rare Lv3
+  BOOST_LV3_CHANCE: 0.12,
   ORDER_SLOTS: 4,
   START_ITEMS: [{ level: 1 }, { level: 1 }, { level: 1 }, { level: 2 }],
 };
 
-/** Customer emoji faces for order cards (original, not GH IP) */
 const CUSTOMER_FACES = ["🧑", "👩", "🧔", "👱", "👵", "🧒", "👨‍🦱", "👩‍🦰", "🧓", "🙂"];
 
 const CHAIN = [
@@ -134,6 +134,15 @@ function countByLevel() {
 function canFulfill(needs) {
   const counts = countByLevel();
   return needs.every((n) => (counts[n.level] || 0) >= n.count);
+}
+
+/** Levels currently needed by any active order (for green checkmarks). */
+function neededLevels() {
+  const set = new Set();
+  for (const order of state.orders) {
+    for (const n of order.needs) set.add(n.level);
+  }
+  return set;
 }
 
 function placeItem(level, preferIndex) {
@@ -318,7 +327,7 @@ function tryMerge(fromIdx, toIdx) {
 function tapGenerator() {
   const cost = generatorCost();
   if (state.energy < cost) {
-    showToast(state.boostOn ? "渦輪要 2⚡！能量唔夠" : "能量唔夠！等再生或者撳 +10");
+    showToast(state.boostOn ? "渦輪要 2⚡！能量唔夠" : "能量唔夠！等再生或者撳 +");
     return;
   }
   if (!emptyCells().length) {
@@ -337,7 +346,7 @@ function toggleBoost() {
   state.boostOn = !state.boostOn;
   const btn = document.getElementById("btn-boost");
   btn.setAttribute("aria-pressed", state.boostOn ? "true" : "false");
-  document.getElementById("boost-hint").textContent = state.boostOn ? "開啟 · 耗 2⚡ 出更高階" : "關閉";
+  document.getElementById("boost-hint").textContent = state.boostOn ? "x2" : "x1";
   updateGenCostBadge();
   renderResources();
   showToast(state.boostOn ? "🚀 渦輪開啟！零件堆耗 2⚡" : "渦輪關閉");
@@ -347,10 +356,8 @@ function updateGenCostBadge() {
   const badge = document.getElementById("gen-cost-badge");
   if (state.boostOn) {
     badge.textContent = "⚡2";
-    badge.className = "cost-badge purple";
   } else {
     badge.textContent = "⚡1";
-    badge.className = "cost-badge yellow";
   }
 }
 
@@ -391,12 +398,12 @@ function updateEnergyTimerUI() {
     el.textContent = "已滿";
   } else {
     const left = CONFIG.ENERGY_REGEN_MS - state.regenElapsedMs;
-    el.textContent = `${formatRegen(left)} +1`;
+    el.textContent = formatRegen(left);
   }
 }
 
 /* ============================================================
-   Render
+   Render — P0/P1 layout
    ============================================================ */
 function renderLandmarks() {
   const root = document.getElementById("landmarks");
@@ -406,6 +413,7 @@ function renderLandmarks() {
     div.className = "landmark";
     if (i <= state.unlockedLandmark) div.classList.add("unlocked");
     if (i === state.unlockedLandmark) div.classList.add("current");
+    div.title = `${lm.name}${i === 0 ? "（出發）" : " · " + lm.cost + "✈️"}`;
     div.innerHTML = `
       <div class="stamp">${lm.emoji}</div>
       <div class="lm-name">${lm.name}</div>
@@ -415,49 +423,85 @@ function renderLandmarks() {
   });
 }
 
+/** P0: horizontal customers with order bubbles ABOVE heads */
 function renderOrders() {
   ensureOrderInstances();
   const root = document.getElementById("orders");
   root.innerHTML = "";
   const diffLabel = { easy: "易", mid: "中", hard: "難" };
+  const counts = countByLevel();
+
   for (const order of state.orders) {
     const ready = canFulfill(order.needs);
-    const card = document.createElement("div");
-    card.className = `order-card ${order.difficulty}` + (ready ? " ready" : "");
+    const cust = document.createElement("div");
+    cust.className = "customer" + (ready ? " ready" : "");
+    cust.dataset.inst = order._inst;
+    cust.title = order.title + (order.isFinale ? " 🏆" : "");
+
     const face = faceForOrder(order);
-    const reqs = order.needs
-      .map((n) => {
-        const v = vehicle(n.level);
-        const have = countByLevel()[n.level] || 0;
-        const met = have >= n.count;
-        return `<span class="req${met ? " met" : ""}">${v.emoji}×${n.count}</span>`;
-      })
-      .join("");
-    card.innerHTML = `
-      <div class="order-top">
-        <div class="customer-face">${face}</div>
-        <div class="order-meta">
-          <div class="title">${order.title}${order.isFinale ? " 🏆" : ""}</div>
-          <span class="diff-chip ${order.difficulty}">${diffLabel[order.difficulty]}</span>
-        </div>
+
+    // Expand needs into icon slots (count copies)
+    const bubbleItems = [];
+    for (const n of order.needs) {
+      const v = vehicle(n.level);
+      const have = counts[n.level] || 0;
+      for (let c = 0; c < n.count; c++) {
+        const met = have > c;
+        bubbleItems.push(
+          `<span class="bubble-item${met ? " met" : ""}" title="${v.name}">${v.emoji}</span>`
+        );
+      }
+    }
+
+    cust.innerHTML = `
+      <span class="customer-diff ${order.difficulty}">${diffLabel[order.difficulty]}</span>
+      <div class="bubble">
+        ${bubbleItems.join("")}
       </div>
-      <div class="order-reqs">${reqs}</div>
-      <div class="order-foot">
-        <span class="reward-badge">✈️ ${order.reward}</span>
-        <button type="button" class="btn-claim" data-inst="${order._inst}" ${ready ? "" : "disabled"}>交單</button>
-      </div>
+      <div class="customer-face">${face}</div>
+      <div class="customer-reward">✈️${order.reward}</div>
     `;
-    root.appendChild(card);
+
+    cust.addEventListener("click", () => {
+      if (canFulfill(order.needs)) {
+        claimOrder(order._inst);
+      } else {
+        showToast(`${order.title}：仲差載具`);
+        setDetail(
+          `<strong>${order.title}</strong><br/>需要：` +
+            order.needs.map((n) => `${vehicle(n.level).emoji}${vehicle(n.level).name}×${n.count}`).join("、")
+        );
+      }
+    });
+
+    root.appendChild(cust);
   }
-  root.querySelectorAll(".btn-claim").forEach((btn) => {
-    btn.addEventListener("click", () => claimOrder(btn.getAttribute("data-inst")));
-  });
+}
+
+function setDetail(html) {
+  document.getElementById("detail-text").innerHTML = html;
+}
+
+function updateDetailFromSelection() {
+  if (state.selectedIndex == null || !state.board[state.selectedIndex]) {
+    setDetail("點選棋盤物件睇詳情");
+    return;
+  }
+  const item = state.board[state.selectedIndex];
+  const v = vehicle(item.level);
+  const next = item.level < CHAIN.length ? vehicle(item.level + 1) : null;
+  let html = `<strong>${v.emoji} ${v.name}</strong>（Lv${item.level}）`;
+  if (next) html += `<br/>合併 → ${next.emoji} ${next.name}`;
+  else html += `<br/>已係最高階`;
+  setDetail(html);
 }
 
 function renderBoard() {
   const boardEl = document.getElementById("board");
   boardEl.innerHTML = "";
   const total = CONFIG.COLS * CONFIG.ROWS;
+  const needed = neededLevels();
+
   for (let i = 0; i < total; i++) {
     const cell = document.createElement("div");
     cell.className = "cell";
@@ -468,7 +512,7 @@ function renderBoard() {
     if (item) {
       const v = vehicle(item.level);
       const el = document.createElement("div");
-      el.className = "item";
+      el.className = "item" + (needed.has(item.level) ? " needed" : "");
       el.draggable = true;
       el.dataset.index = String(i);
       el.title = `${v.name} (Lv${item.level})`;
@@ -478,6 +522,7 @@ function renderBoard() {
     boardEl.appendChild(cell);
   }
   wireBoardEvents(boardEl);
+  updateDetailFromSelection();
 }
 
 function wireBoardEvents(boardEl) {
@@ -556,7 +601,7 @@ function flashMerge(idx) {
 }
 
 function renderResources() {
-  document.getElementById("energy-text").textContent = `${state.energy}/${CONFIG.ENERGY_MAX}`;
+  document.getElementById("energy-text").textContent = String(state.energy);
   document.getElementById("travel-text").textContent = String(state.travel);
   const gen = document.getElementById("generator");
   gen.disabled = state.energy < generatorCost();
@@ -587,7 +632,8 @@ function init() {
 
   document.getElementById("generator").addEventListener("click", tapGenerator);
   document.getElementById("btn-boost").addEventListener("click", toggleBoost);
-  document.getElementById("btn-energy-debug").addEventListener("click", () => {
+  document.getElementById("btn-energy-debug").addEventListener("click", (e) => {
+    e.stopPropagation();
     state.energy = Math.min(CONFIG.ENERGY_MAX, state.energy + 10);
     renderResources();
     updateEnergyTimerUI();
