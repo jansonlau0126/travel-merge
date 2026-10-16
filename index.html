@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>環遊合併 — 載具進化幻想</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="top-bar">
+      <div class="brand">
+        <h1>環遊合併</h1>
+        <p class="tagline">載具越強，去得越遠</p>
+      </div>
+      <div class="resources">
+        <div class="pill energy" title="能量">
+          <span class="icon">⚡</span>
+          <span id="energy-text">50/100</span>
+        </div>
+        <div class="pill travel" title="旅費">
+          <span class="icon">✈️</span>
+          <span id="travel-text">0</span>
+        </div>
+        <button type="button" id="btn-energy-debug" class="btn-debug" title="試玩加能量">+10 ⚡</button>
+      </div>
+    </header>
+
+    <section class="landmarks" id="landmarks" aria-label="景點進度"></section>
+
+    <main class="play-area">
+      <aside class="orders-panel">
+        <h2>訂單</h2>
+        <div id="orders" class="orders"></div>
+      </aside>
+
+      <section class="board-wrap">
+        <div class="generator-row">
+          <button type="button" id="generator" class="generator" title="耗 1 能量產出零件">
+            <span class="gen-emoji">🧰</span>
+            <span class="gen-label">零件堆</span>
+            <span class="gen-hint">點擊 · 1⚡</span>
+          </button>
+          <p class="tip" id="board-hint">兩個相同載具拖埋一齊，或者先點一個再點另一個合併。</p>
+        </div>
+        <div id="board" class="board" role="grid" aria-label="7×8 合併棋盤"></div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" hidden></div>
+    <div id="win-overlay" class="overlay" hidden>
+      <div class="win-card">
+        <div class="win-emoji">🗼✈️</div>
+        <h2>鐵塔首航成功！</h2>
+        <p>第一章完結 — 載具進化幻想帶你去到埃菲爾鐵塔。</p>
+        <p class="win-sub">下一程：萬里長城、金字塔、悉尼歌劇院……（未實裝）</p>
+        <button type="button" id="btn-win-close" class="btn-primary">繼續玩</button>
+      </div>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
