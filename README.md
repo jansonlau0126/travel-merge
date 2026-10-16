@@ -51,3 +51,8 @@ GitHub Pages：https://jansonlau0126.github.io/travel-merge/
 - 軟合併多餘同階棋子＋📦 停車場暫存溢出；**唔會**自動狂抽生產器
 - 目標：非生產器格約 20–25% 空，回場幾秒內可 tap／merge
 - 棋盤塞爆會粵語 toast，並閃光提示可合併棋子
+
+## 美術 craft（2026-10）
+- 景點 before／after 改為向量插畫（唔再用 emoji 字）
+- 載具／generator PNG 去奶油底，顧客頭像圓裁
+- 棋盤木紋、光澤棋子墊、天空／草地層、HUD chrome 加強

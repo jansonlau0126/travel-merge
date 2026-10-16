@@ -4,6 +4,7 @@
    + Sound (Web Audio beeps) + particle bursts + mute toggle
    + Chapter 1 balance retune (early session rewarding)
    + Return-session board space governance (~20–25% empty)
+   + Art craft: landmark SVGs, transparent tile PNGs, HUD/board polish
    ============================================================ */
 const CONFIG = {
   COLS: 7,
