@@ -4,6 +4,8 @@
    P1: wood board dominates vertical space
    P2: compact icon-chip HUD + energy countdown
    P3: fly-to-customer submit + bubble ready check + reward pop
+   P4: collapsed detail strip; gen/boost floating dock
+   P5: glossy CSS tiles + original SVG vehicle/customer assets
    ============================================================ */
 const CONFIG = {
   COLS: 7,
@@ -20,19 +22,26 @@ const CONFIG = {
   FLY_MS: 480,
 };
 
-const CUSTOMER_FACES = ["🧑", "👩", "🧔", "👱", "👵", "🧒", "👨‍🦱", "👩‍🦰", "🧓", "🙂"];
+const CUSTOMER_ASSETS = [
+  "assets/customers/c1.svg",
+  "assets/customers/c2.svg",
+  "assets/customers/c3.svg",
+  "assets/customers/c4.svg",
+  "assets/customers/c5.svg",
+  "assets/customers/c6.svg",
+];
 
 const CHAIN = [
-  { id: "skateboard", name: "滑板", emoji: "🛹" },
-  { id: "bicycle", name: "單車", emoji: "🚲" },
-  { id: "e_scooter", name: "電動滑板車", emoji: "🛴" },
-  { id: "motorcycle", name: "電單車", emoji: "🏍️" },
-  { id: "used_car", name: "二手私家車", emoji: "🚗" },
-  { id: "van", name: "廂型車", emoji: "🚐" },
-  { id: "coach", name: "長途巴士", emoji: "🚌" },
-  { id: "train", name: "列車", emoji: "🚆" },
-  { id: "ferry", name: "渡輪", emoji: "⛴️" },
-  { id: "airliner", name: "客機", emoji: "✈️" },
+  { id: "skateboard", name: "滑板", emoji: "🛹", icon: "assets/vehicles/lv1_skateboard.svg" },
+  { id: "bicycle", name: "單車", emoji: "🚲", icon: "assets/vehicles/lv2_bicycle.svg" },
+  { id: "e_scooter", name: "電動滑板車", emoji: "🛴", icon: "assets/vehicles/lv3_e_scooter.svg" },
+  { id: "motorcycle", name: "電單車", emoji: "🏍️", icon: "assets/vehicles/lv4_motorcycle.svg" },
+  { id: "used_car", name: "二手私家車", emoji: "🚗", icon: "assets/vehicles/lv5_used_car.svg" },
+  { id: "van", name: "廂型車", emoji: "🚐", icon: "assets/vehicles/lv6_van.svg" },
+  { id: "coach", name: "長途巴士", emoji: "🚌", icon: "assets/vehicles/lv7_coach.svg" },
+  { id: "train", name: "列車", emoji: "🚆", icon: "assets/vehicles/lv8_train.svg" },
+  { id: "ferry", name: "渡輪", emoji: "⛴️", icon: "assets/vehicles/lv9_ferry.svg" },
+  { id: "airliner", name: "客機", emoji: "✈️", icon: "assets/vehicles/lv10_airliner.svg" },
 ];
 
 const LANDMARKS = [
@@ -179,9 +188,15 @@ function placeItem(level, preferIndex) {
 function faceForOrder(order) {
   if (order._face) return order._face;
   let h = 0;
-  for (let i = 0; i < order.id.length; i++) h = (h + order.id.charCodeAt(i) * (i + 1)) % CUSTOMER_FACES.length;
-  order._face = CUSTOMER_FACES[h];
+  for (let i = 0; i < order.id.length; i++) h = (h + order.id.charCodeAt(i) * (i + 1)) % CUSTOMER_ASSETS.length;
+  order._face = CUSTOMER_ASSETS[h];
   return order._face;
+}
+
+function vehicleIconHtml(level, className) {
+  const v = vehicle(level);
+  const cls = className ? ` class="${className}"` : "";
+  return `<img${cls} src="${v.icon}" alt="${v.name}" draggable="false" />`;
 }
 
 function generatorCost() {
@@ -292,11 +307,11 @@ function animateFlyToCustomer(boardIndices, customerEl) {
       if (!cellEl) continue;
       const rect = cellEl.getBoundingClientRect();
       const level = state.board[idx] ? state.board[idx].level : 1;
-      const emoji = vehicle(level).emoji;
+      const v = vehicle(level);
 
       const flyer = document.createElement("div");
       flyer.className = "fly-item";
-      flyer.textContent = emoji;
+      flyer.innerHTML = `<img src="${v.icon}" alt="" />`;
       flyer.style.left = rect.left + "px";
       flyer.style.top = rect.top + "px";
       flyer.style.width = Math.max(28, rect.width) + "px";
@@ -558,7 +573,7 @@ function renderOrders() {
       for (let c = 0; c < n.count; c++) {
         const met = have > c;
         bubbleItems.push(
-          `<span class="bubble-item${met ? " met" : ""}" title="${v.name}">${v.emoji}</span>`
+          `<span class="bubble-item${met ? " met" : ""}" title="${v.name}">${vehicleIconHtml(n.level)}</span>`
         );
       }
     }
@@ -569,7 +584,7 @@ function renderOrders() {
         <span class="bubble-ready-check" aria-hidden="true">✓</span>
         ${bubbleItems.join("")}
       </div>
-      <div class="customer-face">${face}</div>
+      <div class="customer-face"><img src="${face}" alt="" draggable="false" /></div>
       <div class="customer-reward">✈️${order.reward}</div>
     `;
 
@@ -579,9 +594,13 @@ function renderOrders() {
         claimOrder(order._inst);
       } else {
         showToast(`${order.title}：仲差載具`);
-        setDetail(
+        state.selectedIndex = null;
+        document.querySelectorAll(".cell.selected").forEach((c) => c.classList.remove("selected"));
+        // Orders stay in bubbles — briefly expand detail as hint only
+        expandDetail(
+          null,
           `<strong>${order.title}</strong><br/>需要：` +
-            order.needs.map((n) => `${vehicle(n.level).emoji}${vehicle(n.level).name}×${n.count}`).join("、")
+            order.needs.map((n) => `${vehicle(n.level).name}×${n.count}`).join("、")
         );
       }
     });
@@ -590,22 +609,48 @@ function renderOrders() {
   }
 }
 
-function setDetail(html) {
-  document.getElementById("detail-text").innerHTML = html;
+function collapseDetail() {
+  const strip = document.getElementById("detail-strip");
+  strip.dataset.expanded = "false";
+  const thumb = document.getElementById("detail-thumb");
+  thumb.hidden = true;
+  thumb.innerHTML = "";
+  const text = document.getElementById("detail-text");
+  text.className = "detail-hint";
+  text.textContent = "點選棋盤物件睇詳情";
+}
+
+function expandDetail(levelOrNull, html) {
+  const strip = document.getElementById("detail-strip");
+  strip.dataset.expanded = "true";
+  const thumb = document.getElementById("detail-thumb");
+  const text = document.getElementById("detail-text");
+  text.className = "";
+  text.innerHTML = html;
+  if (levelOrNull != null) {
+    const v = vehicle(levelOrNull);
+    thumb.hidden = false;
+    thumb.className = "detail-thumb item lv-" + levelOrNull;
+    thumb.innerHTML = `<img src="${v.icon}" alt="${v.name}" />`;
+  } else {
+    thumb.hidden = true;
+    thumb.innerHTML = "";
+  }
 }
 
 function updateDetailFromSelection() {
   if (state.selectedIndex == null || !state.board[state.selectedIndex]) {
-    setDetail("點選棋盤物件睇詳情");
+    collapseDetail();
     return;
   }
   const item = state.board[state.selectedIndex];
   const v = vehicle(item.level);
   const next = item.level < CHAIN.length ? vehicle(item.level + 1) : null;
-  let html = `<strong>${v.emoji} ${v.name}</strong>（Lv${item.level}）`;
-  if (next) html += `<br/>合併 → ${next.emoji} ${next.name}`;
+  let html = `<strong>${v.name}</strong>（Lv${item.level}）`;
+  if (next) html += `<br/>合併 → ${next.name}`;
   else html += `<br/>已係最高階`;
-  setDetail(html);
+  html += `<br/><span style="color:var(--muted);font-weight:600">用途：交旅客訂單／繼續進化</span>`;
+  expandDetail(item.level, html);
 }
 
 function renderBoard() {
@@ -624,11 +669,11 @@ function renderBoard() {
     if (item) {
       const v = vehicle(item.level);
       const el = document.createElement("div");
-      el.className = "item" + (needed.has(item.level) ? " needed" : "");
+      el.className = "item lv-" + item.level + (needed.has(item.level) ? " needed" : "");
       el.draggable = true;
       el.dataset.index = String(i);
       el.title = `${v.name} (Lv${item.level})`;
-      el.innerHTML = `<span>${v.emoji}</span><span class="lv">Lv${item.level}</span>`;
+      el.innerHTML = `<img class="ico" src="${v.icon}" alt="${v.name}" draggable="false" /><span class="lv">Lv${item.level}</span>`;
       cell.appendChild(el);
     }
     boardEl.appendChild(cell);

@@ -11,7 +11,7 @@
     <!-- P2: compact icon-chip HUD -->
     <header class="hud" aria-label="資源列">
       <div class="hud-level" title="等級">
-        <span class="hud-avatar">🧳</span>
+        <span class="hud-avatar" aria-hidden="true"></span>
         <span class="hud-lv">1</span>
       </div>
       <div class="hud-chips">
@@ -37,7 +37,6 @@
       <button type="button" class="hud-shop" id="btn-shop" title="商店（未實裝）" aria-label="商店">🛒</button>
     </header>
 
-    <!-- Slim landmark progress -->
     <nav class="landmarks-slim" id="landmarks" aria-label="景點進度"></nav>
 
     <!-- P0: customers + bubbles ABOVE heads -->
@@ -46,24 +45,29 @@
       <div class="counter-ledge" aria-hidden="true"></div>
     </section>
 
-    <!-- P1: wood board dominates -->
+    <!-- P1: wood board + floating dock (P4) -->
     <section class="board-stage">
       <div id="board" class="board" role="grid" aria-label="7×8 合併棋盤"></div>
+
+      <!-- P4: compact sticky controls on board edge -->
+      <div class="board-dock" aria-label="零件堆同渦輪">
+        <button type="button" id="generator" class="dock-btn gen" title="零件堆">
+          <img class="dock-ico" src="assets/generator.svg" alt="" width="36" height="36" />
+          <span id="gen-cost-badge" class="cost-pill">⚡1</span>
+        </button>
+        <button type="button" id="btn-boost" class="dock-btn boost" aria-pressed="false" title="渦輪：耗雙倍能量，出更高階">
+          <img class="dock-ico" src="assets/boost.svg" alt="" width="36" height="36" />
+          <span id="boost-hint" class="boost-badge">x1</span>
+        </button>
+      </div>
     </section>
 
-    <!-- Minimal bottom -->
-    <footer class="footer">
-      <button type="button" id="generator" class="footer-btn gen" title="零件堆">
-        <span class="footer-emoji">🧰</span>
-        <span id="gen-cost-badge" class="cost-pill">⚡1</span>
-      </button>
-      <div class="detail-bar" id="detail-bar">
-        <p id="detail-text">點選棋盤物件睇詳情</p>
+    <!-- P4: detail strip — collapsed by default, expands on cell select -->
+    <footer class="detail-strip" id="detail-strip" data-expanded="false" aria-label="選中物件詳情">
+      <div class="detail-inner" id="detail-bar">
+        <div class="detail-thumb" id="detail-thumb" hidden></div>
+        <p id="detail-text" class="detail-hint">點選棋盤物件睇詳情</p>
       </div>
-      <button type="button" id="btn-boost" class="footer-btn boost" aria-pressed="false" title="渦輪：耗雙倍能量，出更高階">
-        <span class="footer-emoji">🚀</span>
-        <span id="boost-hint" class="boost-badge">x1</span>
-      </button>
     </footer>
 
     <div id="fly-layer" class="fly-layer" aria-hidden="true"></div>
@@ -71,7 +75,7 @@
     <div id="reward-pop" class="reward-pop" hidden></div>
     <div id="win-overlay" class="overlay" hidden>
       <div class="win-card">
-        <div class="win-emoji">🗼✈️</div>
+        <div class="win-emoji"><img src="assets/vehicles/lv10_airliner.svg" alt="" width="48" height="48" /> 🗼</div>
         <h2>鐵塔首航成功！</h2>
         <p>第一章完結 — 載具進化幻想帶你去到埃菲爾鐵塔。</p>
         <p class="win-sub">下一程：萬里長城、金字塔、悉尼歌劇院……（未實裝）</p>
