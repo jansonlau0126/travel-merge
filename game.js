@@ -76,6 +76,7 @@ const LANDMARKS = [
     decorCost: 15,
     before: "assets/landmarks/home_before.svg",
     after: "assets/landmarks/home_after.svg",
+    scenicBg: "assets/bg-home.jpg",
   },
   {
     id: "torii",
@@ -121,6 +122,7 @@ const LANDMARKS = [
     decorCost: 200,
     before: "assets/landmarks/eiffel_before.svg",
     after: "assets/landmarks/eiffel_after.svg",
+    scenicBg: "assets/bg-eiffel.jpg",
   },
 ];
 
@@ -234,6 +236,8 @@ const state = {
   travel: 0,
   gems: 0,
   unlockedLandmark: 0,
+  /** Selected landmark for scenic bg preview (defaults to current unlocked) */
+  selectedLandmark: 0,
   /** Per-landmark decoration stage: 0 locked, 1 unlocked (before/灰), 2 renovated (after/亮) */
   decorLevels: [1, 0, 0, 0, 0, 0],
   board: /** @type {(null|{ level?: number, genId?: string, uid: number })[]} */ ([]),
@@ -1155,6 +1159,7 @@ function unlockNextLandmark() {
   state.travel -= n.unlockCost;
   state.unlockedLandmark++;
   state.decorLevels[state.unlockedLandmark] = 1;
+  state.selectedLandmark = state.unlockedLandmark;
   const lm = LANDMARKS[state.unlockedLandmark];
   showToast(`護照蓋章！${lm.emoji} ${lm.name}（-${n.unlockCost}✈️）`);
   AudioFX.unlock();
@@ -1214,6 +1219,28 @@ function flashSceneUpgrade() {
   scene.classList.add("flash-upgrade");
 }
 
+/** Soft-blur app scenic: home default; eiffel when unlocked or selected */
+function updateAppBackground() {
+  const app = document.getElementById("app");
+  const bgEl = document.getElementById("app-bg");
+  if (!app) return;
+  const eiffelIdx = LANDMARKS.findIndex((l) => l.id === "eiffel");
+  const eiffelUnlocked = eiffelIdx >= 0 && (state.decorLevels[eiffelIdx] || 0) >= 1;
+  const sel = Number.isInteger(state.selectedLandmark)
+    ? state.selectedLandmark
+    : state.unlockedLandmark;
+  // Home default; eiffel when that landmark is selected (and unlocked) or is the current furthest unlock
+  const useEiffel =
+    eiffelIdx >= 0 &&
+    eiffelUnlocked &&
+    (sel === eiffelIdx || (!Number.isInteger(state.selectedLandmark) && state.unlockedLandmark === eiffelIdx));
+  const key = useEiffel ? "eiffel" : "home";
+  app.dataset.bg = key;
+  if (bgEl) {
+    bgEl.style.backgroundImage = `url("${key === "eiffel" ? "assets/bg-eiffel.jpg" : "assets/bg-home.jpg"}")`;
+  }
+}
+
 function renderLandmarkScene() {
   const scene = document.getElementById("landmark-scene");
   if (!scene) return;
@@ -1224,8 +1251,15 @@ function renderLandmarkScene() {
   scene.dataset.stage = String(stage);
   const before = document.getElementById("scene-before");
   const after = document.getElementById("scene-after");
-  if (before) before.style.backgroundImage = `url("${lm.before}")`;
-  if (after) after.style.backgroundImage = `url("${lm.after}")`;
+  // Prefer hi-res scenic for home / eiffel scene strip when available
+  const scenic = lm.scenicBg;
+  if (before) {
+    before.style.backgroundImage = `url("${scenic || lm.before}")`;
+  }
+  if (after) {
+    after.style.backgroundImage = `url("${scenic || lm.after}")`;
+  }
+  updateAppBackground();
 }
 
 /* ============================================================
@@ -1407,7 +1441,23 @@ function renderLandmarks() {
       <div class="lm-cost">${costLabel}</div>
       <span class="decor-pip" aria-hidden="true"></span>
     `;
-    div.addEventListener("click", () => openDecorateModal());
+    div.addEventListener("click", () => {
+      if (stage >= 1) {
+        state.selectedLandmark = i;
+        updateAppBackground();
+        // Refresh scene strip to match selection when it has scenic art
+        if (LANDMARKS[i].scenicBg) {
+          const scene = document.getElementById("landmark-scene");
+          if (scene) scene.dataset.id = LANDMARKS[i].id;
+          const before = document.getElementById("scene-before");
+          const after = document.getElementById("scene-after");
+          const src = LANDMARKS[i].scenicBg;
+          if (before) before.style.backgroundImage = `url("${src}")`;
+          if (after) after.style.backgroundImage = `url("${src}")`;
+        }
+      }
+      openDecorateModal();
+    });
     root.appendChild(div);
   });
   renderLandmarkScene();
