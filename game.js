@@ -2,6 +2,8 @@
    環遊合併 — Prototype (Travel Town / Gossip Harbor layout DNA)
    P0: customer row + bubbles above heads
    P1: wood board dominates vertical space
+   P2: compact icon-chip HUD + energy countdown
+   P3: fly-to-customer submit + bubble ready check + reward pop
    ============================================================ */
 const CONFIG = {
   COLS: 7,
@@ -15,6 +17,7 @@ const CONFIG = {
   BOOST_LV3_CHANCE: 0.12,
   ORDER_SLOTS: 4,
   START_ITEMS: [{ level: 1 }, { level: 1 }, { level: 1 }, { level: 2 }],
+  FLY_MS: 480,
 };
 
 const CUSTOMER_FACES = ["🧑", "👩", "🧔", "👱", "👵", "🧒", "👨‍🦱", "👩‍🦰", "🧓", "🙂"];
@@ -87,6 +90,7 @@ const ORDER_POOL = [
 const state = {
   energy: CONFIG.ENERGY_START,
   travel: 0,
+  gems: 0,
   unlockedLandmark: 0,
   board: /** @type {(null|{ level: number, uid: number })[]} */ ([]),
   orders: /** @type {any[]} */ ([]),
@@ -97,6 +101,7 @@ const state = {
   boostOn: false,
   regenElapsedMs: 0,
   lastTick: Date.now(),
+  claiming: false,
 };
 
 function vehicle(level) {
@@ -112,6 +117,20 @@ function showToast(msg) {
   showToast._t = setTimeout(() => {
     el.classList.remove("show");
   }, 2200);
+}
+
+function showRewardPop(reward) {
+  const el = document.getElementById("reward-pop");
+  el.textContent = `✈️ +${reward} 旅費！`;
+  el.hidden = false;
+  el.classList.add("show");
+  clearTimeout(showRewardPop._t);
+  showRewardPop._t = setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => {
+      el.hidden = true;
+    }, 250);
+  }, 900);
 }
 
 function emptyCells() {
@@ -236,7 +255,87 @@ function refillOrders() {
   state.orders = next;
 }
 
-function claimOrder(instKey) {
+/** Collect board indices that will be consumed for this order. */
+function pickConsumedIndices(needs) {
+  const indices = [];
+  const used = new Set();
+  for (const need of needs) {
+    let left = need.count;
+    for (let i = 0; i < state.board.length && left > 0; i++) {
+      if (used.has(i)) continue;
+      if (state.board[i] && state.board[i].level === need.level) {
+        indices.push(i);
+        used.add(i);
+        left--;
+      }
+    }
+  }
+  return indices;
+}
+
+/**
+ * P3: animate items flying from board cells into a customer bubble.
+ * Returns a Promise that resolves when animation finishes.
+ */
+function animateFlyToCustomer(boardIndices, customerEl) {
+  return new Promise((resolve) => {
+    const layer = document.getElementById("fly-layer");
+    const bubble = customerEl.querySelector(".bubble");
+    const targetEl = bubble || customerEl;
+    const targetRect = targetEl.getBoundingClientRect();
+    const tx = targetRect.left + targetRect.width / 2 - 20;
+    const ty = targetRect.top + targetRect.height / 2 - 20;
+
+    const flyers = [];
+    for (const idx of boardIndices) {
+      const cellEl = document.querySelector(`.cell[data-index="${idx}"] .item`);
+      if (!cellEl) continue;
+      const rect = cellEl.getBoundingClientRect();
+      const level = state.board[idx] ? state.board[idx].level : 1;
+      const emoji = vehicle(level).emoji;
+
+      const flyer = document.createElement("div");
+      flyer.className = "fly-item";
+      flyer.textContent = emoji;
+      flyer.style.left = rect.left + "px";
+      flyer.style.top = rect.top + "px";
+      flyer.style.width = Math.max(28, rect.width) + "px";
+      flyer.style.height = Math.max(28, rect.height) + "px";
+      layer.appendChild(flyer);
+      flyers.push({ flyer, tx, ty, sx: rect.left, sy: rect.top });
+
+      // Hide source item during flight
+      cellEl.style.opacity = "0";
+    }
+
+    if (!flyers.length) {
+      resolve();
+      return;
+    }
+
+    // Force layout then animate
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        for (const f of flyers) {
+          const dx = f.tx - f.sx;
+          const dy = f.ty - f.sy;
+          f.flyer.style.transform = `translate(${dx}px, ${dy}px) scale(0.35)`;
+          f.flyer.style.opacity = "0.15";
+          f.flyer.classList.add("flying");
+        }
+      });
+    });
+
+    setTimeout(() => {
+      for (const f of flyers) f.flyer.remove();
+      resolve();
+    }, CONFIG.FLY_MS);
+  });
+}
+
+async function claimOrder(instKey) {
+  if (state.claiming) return;
+
   let order = null;
   let oi = -1;
   for (let i = 0; i < state.orders.length; i++) {
@@ -248,19 +347,28 @@ function claimOrder(instKey) {
   }
   if (!order || !canFulfill(order.needs)) return;
 
-  for (const need of order.needs) {
-    let left = need.count;
-    for (let i = 0; i < state.board.length && left > 0; i++) {
-      if (state.board[i] && state.board[i].level === need.level) {
-        state.board[i] = null;
-        left--;
-      }
-    }
+  state.claiming = true;
+  const consumed = pickConsumedIndices(order.needs);
+  const customerEl = document.querySelector(`.customer[data-inst="${instKey}"]`);
+
+  // Flash bubble check before fly
+  if (customerEl) {
+    customerEl.classList.add("ready");
+  }
+
+  if (customerEl && consumed.length) {
+    await animateFlyToCustomer(consumed, customerEl);
+  }
+
+  // Clear consumed board items
+  for (const i of consumed) {
+    state.board[i] = null;
   }
 
   state.travel += order.reward;
   state.usedOrderIds.add(order.id);
   showToast(`訂單完成！+${order.reward} 旅費 ✈️`);
+  showRewardPop(order.reward);
 
   const wasFinale = order.isFinale;
   state.orders.splice(oi, 1);
@@ -273,6 +381,7 @@ function claimOrder(instKey) {
     document.getElementById("win-overlay").hidden = false;
   }
 
+  state.claiming = false;
   render();
 }
 
@@ -327,7 +436,7 @@ function tryMerge(fromIdx, toIdx) {
 function tapGenerator() {
   const cost = generatorCost();
   if (state.energy < cost) {
-    showToast(state.boostOn ? "渦輪要 2⚡！能量唔夠" : "能量唔夠！等再生或者撳 +");
+    showToast(state.boostOn ? "渦輪要 2⚡！能量唔夠" : "能量唔夠！等再生或者撳 ⊕");
     return;
   }
   if (!emptyCells().length) {
@@ -362,7 +471,7 @@ function updateGenCostBadge() {
 }
 
 /* ============================================================
-   Energy regen timer
+   Energy regen timer (P2: visible m:ss countdown)
    ============================================================ */
 function formatRegen(msLeft) {
   const totalSec = Math.max(0, Math.ceil(msLeft / 1000));
@@ -396,14 +505,16 @@ function updateEnergyTimerUI() {
   const el = document.getElementById("energy-timer");
   if (state.energy >= CONFIG.ENERGY_MAX) {
     el.textContent = "已滿";
+    el.classList.add("is-full");
   } else {
     const left = CONFIG.ENERGY_REGEN_MS - state.regenElapsedMs;
     el.textContent = formatRegen(left);
+    el.classList.remove("is-full");
   }
 }
 
 /* ============================================================
-   Render — P0/P1 layout
+   Render
    ============================================================ */
 function renderLandmarks() {
   const root = document.getElementById("landmarks");
@@ -423,7 +534,7 @@ function renderLandmarks() {
   });
 }
 
-/** P0: horizontal customers with order bubbles ABOVE heads */
+/** P0 + P3: customers with bubbles; green check when completable */
 function renderOrders() {
   ensureOrderInstances();
   const root = document.getElementById("orders");
@@ -440,7 +551,6 @@ function renderOrders() {
 
     const face = faceForOrder(order);
 
-    // Expand needs into icon slots (count copies)
     const bubbleItems = [];
     for (const n of order.needs) {
       const v = vehicle(n.level);
@@ -456,6 +566,7 @@ function renderOrders() {
     cust.innerHTML = `
       <span class="customer-diff ${order.difficulty}">${diffLabel[order.difficulty]}</span>
       <div class="bubble">
+        <span class="bubble-ready-check" aria-hidden="true">✓</span>
         ${bubbleItems.join("")}
       </div>
       <div class="customer-face">${face}</div>
@@ -463,6 +574,7 @@ function renderOrders() {
     `;
 
     cust.addEventListener("click", () => {
+      if (state.claiming) return;
       if (canFulfill(order.needs)) {
         claimOrder(order._inst);
       } else {
@@ -558,6 +670,7 @@ function wireBoardEvents(boardEl) {
     });
 
     cell.addEventListener("click", () => {
+      if (state.claiming) return;
       if (!state.board[idx]) {
         if (state.selectedIndex != null && state.board[state.selectedIndex]) {
           if (tryMerge(state.selectedIndex, idx)) {
@@ -603,6 +716,8 @@ function flashMerge(idx) {
 function renderResources() {
   document.getElementById("energy-text").textContent = String(state.energy);
   document.getElementById("travel-text").textContent = String(state.travel);
+  const gemsEl = document.getElementById("gems-text");
+  if (gemsEl) gemsEl.textContent = String(state.gems);
   const gen = document.getElementById("generator");
   gen.disabled = state.energy < generatorCost();
   updateGenCostBadge();
@@ -638,6 +753,17 @@ function init() {
     renderResources();
     updateEnergyTimerUI();
     showToast("+10 能量 ⚡");
+  });
+  document.getElementById("btn-travel-plus").addEventListener("click", (e) => {
+    e.stopPropagation();
+    showToast("商店未實裝");
+  });
+  document.getElementById("btn-gems-plus").addEventListener("click", (e) => {
+    e.stopPropagation();
+    showToast("商店未實裝");
+  });
+  document.getElementById("btn-shop").addEventListener("click", () => {
+    showToast("商店未實裝");
   });
   document.getElementById("btn-win-close").addEventListener("click", () => {
     document.getElementById("win-overlay").hidden = true;

@@ -12,7 +12,7 @@
   --wood-cell: #e8d4a8;
   --wood-cell-alt: #dcc498;
   --wood-line: #b89060;
-  --hud-bg: rgba(255, 255, 255, 0.92);
+  --hud-bg: rgba(255, 255, 255, 0.94);
   --text: #3d2a1a;
   --muted: #8a6a50;
   --good: #4caf50;
@@ -40,7 +40,7 @@ body {
   height: 100%;
   max-height: 100dvh;
   display: grid;
-  /* P1 proportions: HUD ~8% | landmarks ~4% | customers ~15% | board ~63% | footer ~10% */
+  /* HUD ~8% | landmarks ~3.5% | customers ~15% | board ~63% | footer ~10% */
   grid-template-rows: 8% 3.5% 15% minmax(0, 1fr) 10%;
   background:
     linear-gradient(180deg, #6ec6f0 0%, #a8dff5 18%, transparent 18%),
@@ -50,12 +50,12 @@ body {
   overflow: hidden;
 }
 
-/* ========== TOP HUD (~8%) ========== */
+/* ========== P2: compact icon-chip HUD ========== */
 .hud {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px 2px;
+  gap: 5px;
+  padding: 4px 6px 2px;
   z-index: 5;
   min-height: 0;
 }
@@ -63,35 +63,36 @@ body {
 .hud-level {
   position: relative;
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
 }
 
 .hud-avatar {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: linear-gradient(145deg, #fff, #ffe0c0);
-  border: 2.5px solid #fff;
+  border: 2px solid #fff;
   box-shadow: var(--shadow);
-  font-size: 1.2rem;
+  font-size: 1.05rem;
 }
 
 .hud-lv {
   position: absolute;
-  right: -2px;
-  bottom: -2px;
+  right: -3px;
+  bottom: -3px;
   background: linear-gradient(180deg, #ffd54f, #ff9800);
   color: #fff;
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   font-weight: 900;
-  padding: 1px 5px;
+  padding: 1px 4px;
   border-radius: 999px;
   border: 1.5px solid #fff;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+  line-height: 1.2;
 }
 
 .hud-chips {
@@ -105,13 +106,13 @@ body {
 .chip {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   background: var(--hud-bg);
   border-radius: 999px;
-  padding: 3px 6px 3px 3px;
+  padding: 2px 4px 2px 2px;
   box-shadow: var(--shadow);
   border: 1.5px solid rgba(255, 255, 255, 0.95);
-  min-height: 28px;
+  min-height: 30px;
   flex: 1;
   min-width: 0;
   position: relative;
@@ -124,7 +125,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   flex-shrink: 0;
 }
 
@@ -140,6 +141,16 @@ body {
   background: linear-gradient(160deg, #f48fb1, #e040fb);
 }
 
+.chip-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  line-height: 1.05;
+  min-width: 0;
+  flex: 1;
+}
+
 .chip-val {
   font-weight: 800;
   font-size: 0.72rem;
@@ -147,12 +158,22 @@ body {
   white-space: nowrap;
 }
 
+.chip.energy .chip-val {
+  font-size: 0.7rem;
+}
+
 .chip-timer {
-  font-size: 0.5rem;
-  font-weight: 700;
-  color: var(--muted);
-  margin-left: 1px;
+  font-size: 0.52rem;
+  font-weight: 800;
+  color: #e65100;
   white-space: nowrap;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip.energy .chip-timer.is-full {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .chip-plus {
@@ -164,28 +185,35 @@ body {
   background: linear-gradient(180deg, #81c784, #43a047);
   color: #fff;
   font-weight: 900;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   line-height: 1;
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
   box-shadow: 0 1px 0 #2e7d32;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chip-plus:active {
+  transform: scale(0.92);
 }
 
 .hud-shop {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 2px solid #fff;
   background: linear-gradient(160deg, #fff3e0, #ffcc80);
   box-shadow: var(--shadow);
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
   padding: 0;
 }
 
-/* ========== Landmark slim strip (~3.5%) ========== */
+/* ========== Landmark slim strip ========== */
 .landmarks-slim {
   display: flex;
   align-items: center;
@@ -220,15 +248,12 @@ body {
   line-height: 1;
 }
 
-.landmark .lm-name {
-  display: none;
-}
-
+.landmark .lm-name,
 .landmark .lm-cost {
   display: none;
 }
 
-/* ========== P0: Customers + bubbles (~15%) ========== */
+/* ========== P0: Customers + bubbles ========== */
 .customers {
   position: relative;
   display: flex;
@@ -271,7 +296,6 @@ body {
   50% { transform: translateY(-3px); }
 }
 
-/* Order bubble ABOVE head */
 .bubble {
   position: relative;
   background: #fff;
@@ -297,6 +321,37 @@ body {
   transform: translateX(-50%);
   border: 6px solid transparent;
   border-top-color: #fff;
+}
+
+/* P3: green check on bubble when completable */
+.bubble-ready-check {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #81c784, #2e7d32);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 900;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(46, 125, 50, 0.45);
+  z-index: 4;
+  animation: check-pop 0.35s ease;
+}
+
+.customer.ready .bubble-ready-check {
+  display: flex;
+}
+
+@keyframes check-pop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
 }
 
 .bubble-item {
@@ -328,19 +383,6 @@ body {
   align-items: center;
   justify-content: center;
   border: 1px solid #fff;
-}
-
-.bubble-reward {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  font-size: 0.55rem;
-  font-weight: 800;
-  color: #b8860b;
-  background: linear-gradient(180deg, #fff59d, #ffd54f);
-  padding: 1px 5px;
-  border-radius: 999px;
-  margin-left: 2px;
 }
 
 .customer-face {
@@ -523,7 +565,38 @@ body {
   100% { transform: scale(1); }
 }
 
-/* ========== Footer (~10%) ========== */
+/* ========== P3: fly-to-customer layer ========== */
+.fly-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 55;
+  overflow: hidden;
+}
+
+.fly-item {
+  position: fixed;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #fffef5, #ffe8c8);
+  border: 2px solid #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  z-index: 56;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.45s ease;
+  will-change: transform, opacity;
+}
+
+.fly-item.flying {
+  opacity: 0.15;
+  transform: scale(0.35);
+}
+
+/* ========== Footer ========== */
 .footer {
   display: flex;
   align-items: center;
@@ -622,7 +695,7 @@ body {
   color: var(--text);
 }
 
-/* Toast / Win */
+/* Toast / Reward pop / Win */
 .toast {
   position: fixed;
   left: 50%;
@@ -645,6 +718,32 @@ body {
 .toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+.reward-pop {
+  position: fixed;
+  left: 50%;
+  top: 38%;
+  transform: translate(-50%, -50%) scale(0.5);
+  background: linear-gradient(180deg, #fff59d, #ffd54f);
+  color: #5d4037;
+  padding: 10px 18px;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 900;
+  border: 3px solid #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 58;
+  transition: opacity 0.2s, transform 0.35s cubic-bezier(0.2, 1.2, 0.3, 1);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.reward-pop.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .overlay {

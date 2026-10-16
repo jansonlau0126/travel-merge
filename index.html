@@ -8,7 +8,7 @@
 </head>
 <body>
   <div id="app">
-    <!-- P1: thin top HUD (~8%) -->
+    <!-- P2: compact icon-chip HUD -->
     <header class="hud" aria-label="資源列">
       <div class="hud-level" title="等級">
         <span class="hud-avatar">🧳</span>
@@ -17,37 +17,41 @@
       <div class="hud-chips">
         <div class="chip energy" title="能量">
           <span class="chip-ico">⚡</span>
-          <span id="energy-text" class="chip-val">100</span>
-          <span id="energy-timer" class="chip-timer">已滿</span>
-          <button type="button" id="btn-energy-debug" class="chip-plus" title="試玩加能量">+</button>
+          <div class="chip-stack">
+            <span id="energy-text" class="chip-val">100</span>
+            <span id="energy-timer" class="chip-timer">已滿</span>
+          </div>
+          <button type="button" id="btn-energy-debug" class="chip-plus" title="試玩加能量" aria-label="加能量">⊕</button>
         </div>
         <div class="chip travel" title="旅費">
           <span class="chip-ico">✈️</span>
           <span id="travel-text" class="chip-val">0</span>
+          <button type="button" id="btn-travel-plus" class="chip-plus" title="商店（未實裝）" aria-label="加旅費">⊕</button>
         </div>
         <div class="chip gems" title="寶石">
           <span class="chip-ico">💎</span>
-          <span class="chip-val">0</span>
+          <span id="gems-text" class="chip-val">0</span>
+          <button type="button" id="btn-gems-plus" class="chip-plus" title="商店（未實裝）" aria-label="加寶石">⊕</button>
         </div>
       </div>
-      <button type="button" class="hud-shop" title="商店（未實裝）" aria-label="商店">🛒</button>
+      <button type="button" class="hud-shop" id="btn-shop" title="商店（未實裝）" aria-label="商店">🛒</button>
     </header>
 
-    <!-- Slim landmark progress (not cream cards) -->
+    <!-- Slim landmark progress -->
     <nav class="landmarks-slim" id="landmarks" aria-label="景點進度"></nav>
 
-    <!-- P0: customers + bubbles ABOVE heads (~15%) -->
+    <!-- P0: customers + bubbles ABOVE heads -->
     <section class="customers" aria-label="旅客訂單">
       <div id="orders" class="customer-row"></div>
       <div class="counter-ledge" aria-hidden="true"></div>
     </section>
 
-    <!-- P1: wood board dominates (~60%) -->
+    <!-- P1: wood board dominates -->
     <section class="board-stage">
       <div id="board" class="board" role="grid" aria-label="7×8 合併棋盤"></div>
     </section>
 
-    <!-- Minimal bottom (~10%) -->
+    <!-- Minimal bottom -->
     <footer class="footer">
       <button type="button" id="generator" class="footer-btn gen" title="零件堆">
         <span class="footer-emoji">🧰</span>
@@ -62,7 +66,9 @@
       </button>
     </footer>
 
+    <div id="fly-layer" class="fly-layer" aria-hidden="true"></div>
     <div id="toast" class="toast" hidden></div>
+    <div id="reward-pop" class="reward-pop" hidden></div>
     <div id="win-overlay" class="overlay" hidden>
       <div class="win-card">
         <div class="win-emoji">🗼✈️</div>
