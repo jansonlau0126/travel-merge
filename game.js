@@ -1238,6 +1238,7 @@ function updateAppBackground() {
   if (bgEl) {
     bgEl.style.backgroundImage = `url("${scenic}")`;
   }
+  document.documentElement.style.setProperty("--scenic", `url("${scenic}")`);
 }
 
 function renderLandmarkScene() {
@@ -1460,10 +1461,11 @@ function renderLandmarks() {
     root.appendChild(div);
   });
   renderLandmarkScene();
-  const btn = document.getElementById("btn-decorate");
-  if (btn) {
-    btn.classList.toggle("pulse", canAffordUnlock() || canAffordUpgrade());
-  }
+  const pulseOn = canAffordUnlock() || canAffordUpgrade();
+  ["btn-decorate", "btn-shop", "btn-map"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("pulse", pulseOn);
+  });
 }
 
 function renderDock() {
@@ -1493,14 +1495,6 @@ function renderDock() {
       </button>
     `;
   }
-  const parkCount = state.parking.length;
-  html += `
-    <button type="button" id="btn-park" class="dock-btn park${parkCount ? " has-items" : ""}" title="停車場（溢出暫存）" aria-label="停車場">
-      <span class="dock-ico park-ico" aria-hidden="true">📦</span>
-      <span class="park-badge">${parkCount}</span>
-      <span class="dock-label">停車場</span>
-    </button>
-  `;
   html += `
     <button type="button" id="btn-boost" class="dock-btn boost" aria-pressed="${state.boostOn ? "true" : "false"}" title="渦輪：耗雙倍能量，出更高階">
       <img class="dock-ico" src="assets/boost.svg" alt="" width="36" height="36" />
@@ -1508,6 +1502,7 @@ function renderDock() {
     </button>
   `;
   dock.innerHTML = html;
+  syncParkButton();
 
   dock.querySelectorAll(".dock-btn.gen[data-gen]").forEach((btn) => {
     btn.addEventListener("click", () => tapGenerator(btn.dataset.gen));
@@ -1521,16 +1516,6 @@ function renderDock() {
       }
     });
   });
-  const parkBtn = document.getElementById("btn-park");
-  if (parkBtn) {
-    parkBtn.addEventListener("click", () => {
-      if (unparkOne()) render();
-      else {
-        renderBoard();
-        renderDock();
-      }
-    });
-  }
   const boostBtn = document.getElementById("btn-boost");
   if (boostBtn) boostBtn.addEventListener("click", toggleBoost);
 }
@@ -1573,21 +1558,26 @@ function renderOrders() {
       }
     }
 
+    const reward = bonus ? Math.round(order.reward * CONFIG.BONUS_MULT) : order.reward;
+    const energyGain = CONFIG.ENERGY_ON_ORDER[order.difficulty] || 2;
     const bonusHtml = bonus
       ? `<span class="bubble-bonus"><span class="bubble-bonus-timer">${formatRegen(bonusTimeLeftMs())}</span> +${Math.round((CONFIG.BONUS_MULT - 1) * 100)}%</span>`
       : "";
     const almostHtml = almost ? `<span class="almost-hint">就差少少</span>` : "";
 
     cust.innerHTML = `
-      <span class="customer-diff ${order.difficulty}">${diffLabel[order.difficulty]}</span>
+      ${bonusHtml}
+      <div class="customer-face">${artImg(face, order._faceFallback || "", "🙂")}</div>
       <div class="bubble">
         <span class="bubble-ready-check" aria-hidden="true">✓</span>
-        ${bubbleItems.join("")}
-        ${bonusHtml}
+        <span class="customer-diff ${order.difficulty}">${diffLabel[order.difficulty]}</span>
+        <div class="order-rewards">
+          <span class="reward-chip coin"><span class="reward-ico" aria-hidden="true"></span><span class="reward-num">+${reward}</span></span>
+          <span class="reward-chip bolt"><span class="reward-ico" aria-hidden="true"></span><span class="reward-num">+${energyGain}</span></span>
+        </div>
+        <div class="order-needs">${bubbleItems.join("")}</div>
+        ${almostHtml}
       </div>
-      <div class="customer-face">${artImg(face, order._faceFallback || "", "🙂")}</div>
-      <div class="customer-reward">✈️${bonus ? Math.round(order.reward * CONFIG.BONUS_MULT) : order.reward}</div>
-      ${almostHtml}
     `;
 
     cust.addEventListener("click", () => {
@@ -1814,11 +1804,24 @@ function flashMerge(idx) {
   });
 }
 
+function formatAmount(n) {
+  return Math.round(Number(n) || 0).toLocaleString("en-US");
+}
+
+function syncParkButton() {
+  const parkCount = state.parking.length;
+  const parkBtn = document.getElementById("btn-park");
+  if (!parkBtn) return;
+  parkBtn.classList.toggle("has-items", parkCount > 0);
+  const badge = parkBtn.querySelector(".park-badge");
+  if (badge) badge.textContent = String(parkCount);
+}
+
 function renderResources() {
-  document.getElementById("energy-text").textContent = String(state.energy);
-  document.getElementById("travel-text").textContent = String(state.travel);
+  document.getElementById("energy-text").textContent = formatAmount(state.energy);
+  document.getElementById("travel-text").textContent = formatAmount(state.travel);
   const gemsEl = document.getElementById("gems-text");
-  if (gemsEl) gemsEl.textContent = String(state.gems);
+  if (gemsEl) gemsEl.textContent = formatAmount(state.gems);
   // Refresh dock disable state without full rebuild if possible
   const cost = generatorCost();
   document.querySelectorAll(".dock-btn.gen[data-gen]").forEach((btn) => {
@@ -1954,6 +1957,18 @@ function init() {
   document.getElementById("btn-shop").addEventListener("click", () => {
     openDecorateModal();
   });
+  const btnMap = document.getElementById("btn-map");
+  if (btnMap) btnMap.addEventListener("click", openDecorateModal);
+  const parkBtn = document.getElementById("btn-park");
+  if (parkBtn) {
+    parkBtn.addEventListener("click", () => {
+      if (unparkOne()) render();
+      else {
+        renderBoard();
+        renderDock();
+      }
+    });
+  }
   const muteBtn = document.getElementById("btn-mute");
   if (muteBtn) {
     syncMuteButton();
