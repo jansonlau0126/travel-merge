@@ -263,7 +263,21 @@ const state = {
   parking: /** @type {{ level: number, uid: number }[]} */ ([]),
   /** Indices currently flashing as merge hints */
   mergeHints: /** @type {Set<number>} */ (new Set()),
+  /** Ignore the click that follows a pointer-drag drop */
+  suppressClick: false,
+  /** Newly refilled orders play a slide-in */
+  ordersEntering: false,
 };
+
+/** Early-board sand/cobweb locks. Unlock by merging a matching free item onto them. */
+const BURIED_PLAN = [
+  { index: 55, level: 1 },
+  { index: 54, level: 1 },
+  { index: 53, level: 2 },
+  { index: 52, level: 1 },
+  { index: 48, level: 2 },
+  { index: 41, level: 1 },
+];
 
 /* ============================================================
    Web Audio beeps（唔使外部音檔）+ DOM 粒子
@@ -301,6 +315,10 @@ const AudioFX = {
     this.tone(523.25, 0.08, "sine", 0.08, 0);
     this.tone(659.25, 0.09, "sine", 0.07, 0.07);
     this.tone(783.99, 0.14, "triangle", 0.08, 0.15);
+  },
+  thud() {
+    this.tone(150, 0.05, "sine", 0.045, 0);
+    this.tone(90, 0.07, "triangle", 0.03, 0.03);
   },
   unlock() {
     this.tone(392, 0.1, "sine", 0.08, 0);
@@ -403,8 +421,13 @@ function isGeneratorCell(cell) {
   return !!(cell && cell.genId);
 }
 
+function isBuriedCell(cell) {
+  return !!(cell && cell.buried && cell.level && !cell.genId);
+}
+
+/** Free merge piece. Buried sand tiles are occupied but not playable items. */
 function isItemCell(cell) {
-  return !!(cell && cell.level && !cell.genId);
+  return !!(cell && cell.level && !cell.genId && !cell.buried);
 }
 
 function showToast(msg) {
@@ -1080,6 +1103,14 @@ async function claimOrder(instKey) {
   const energyGain = CONFIG.ENERGY_ON_ORDER[order.difficulty] || 2;
   state.energy = Math.min(CONFIG.ENERGY_MAX, state.energy + energyGain);
   state.usedOrderIds.add(order.id);
+  const rewardFrom = (customerEl && customerEl.querySelector(".bubble")) || customerEl;
+  await Promise.all([
+    flyReward(rewardFrom, ".chip.travel", `+${reward}`),
+    flyReward(rewardFrom, ".chip.energy", `+${energyGain}`),
+  ]);
+  renderResources();
+  bounceChip(".chip.travel");
+  bounceChip(".chip.energy");
   showToast(
     hadBonus
       ? `限時加成完成！+${reward}✈️ +${energyGain}⚡`
@@ -1093,6 +1124,8 @@ async function claimOrder(instKey) {
       colors: ["#ffd54f", "#ff8a65", "#4fc3f7", "#fff59d", "#ffffff", "#aed581"],
       spread: 90,
     });
+    customerEl.classList.add("leaving");
+    await wait(280);
   } else {
     burstParticles(window.innerWidth / 2, window.innerHeight * 0.28, { count: 22, spread: 90 });
   }
@@ -1101,6 +1134,7 @@ async function claimOrder(instKey) {
   state.orders.splice(oi, 1);
   checkLandmarkUnlocks();
   refillOrders();
+  state.ordersEntering = true;
 
   if (wasFinale && state.unlockedLandmark >= 5) {
     state.won = true;
@@ -1115,6 +1149,7 @@ async function claimOrder(instKey) {
 
   state.claiming = false;
   render();
+  state.ordersEntering = false;
 }
 
 function ensureOrderInstances() {
@@ -1265,32 +1300,136 @@ function renderLandmarkScene() {
 /* ============================================================
    Merge / Generator
    ============================================================ */
+/**
+ * @returns {false|"move"|"merge"|"reveal"}
+ * Buried tiles unlock only when a matching free item merges onto them.
+ */
 function tryMerge(fromIdx, toIdx) {
   if (fromIdx === toIdx) return false;
   const a = state.board[fromIdx];
   const b = state.board[toIdx];
-  if (isGeneratorCell(a) || isGeneratorCell(b)) return false;
-  if (!a || !b) {
-    if (isItemCell(a) && !b) {
-      state.board[toIdx] = a;
-      state.board[fromIdx] = null;
-      return true;
-    }
-    return false;
+  if (isGeneratorCell(a) || isGeneratorCell(b) || isBuriedCell(a)) return false;
+  if (!isItemCell(a)) return false;
+
+  if (!b) {
+    state.board[toIdx] = a;
+    state.board[fromIdx] = null;
+    return "move";
   }
-  if (!isItemCell(a) || !isItemCell(b)) return false;
-  if (a.level !== b.level) return false;
+
+  const sameLevel = (isItemCell(b) || isBuriedCell(b)) && a.level === b.level;
+  if (!sameLevel) return false;
   if (a.level >= CHAIN.length) {
     showToast("已經係最高級客機喇！");
     return false;
   }
+
+  const revealed = isBuriedCell(b);
   const nextLevel = a.level + 1;
   state.board[fromIdx] = null;
   state.board[toIdx] = { level: nextLevel, uid: state.nextUid++ };
   const v = vehicle(nextLevel);
+  if (revealed) {
+    showToast(`沙堆揭開！${v.emoji} ${v.name}`);
+    AudioFX.unlock();
+    return "reveal";
+  }
   showToast(`合併成功！${v.emoji} ${v.name}`);
   AudioFX.merge();
-  return true;
+  return "merge";
+}
+
+function generatorIndex(genId) {
+  for (let i = 0; i < state.board.length; i++) {
+    if (isGeneratorCell(state.board[i]) && state.board[i].genId === genId) return i;
+  }
+  return -1;
+}
+
+function bounceChip(selector) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  el.classList.remove("chip-bounce");
+  void el.offsetWidth;
+  el.classList.add("chip-bounce");
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function tileBadge(kind) {
+  const glyph = kind === "bolt" ? "⚡" : kind === "crown" ? "♛" : "✓";
+  return `<span class="tile-badge ${kind}" aria-hidden="true">${glyph}</span>`;
+}
+
+/** Arc the new piece from its generator (or dock button) into the landing cell. */
+function animateSpawnArc(fromIdx, toIdx, genId) {
+  const itemEl = document.querySelector(`.cell[data-index="${toIdx}"] .item`);
+  const fromEl =
+    (fromIdx >= 0 && document.querySelector(`.cell[data-index="${fromIdx}"]`)) ||
+    document.querySelector(`.dock-btn.gen[data-gen="${genId}"]`);
+  if (!itemEl || !fromEl) return;
+  const a = fromEl.getBoundingClientRect();
+  const b = itemEl.getBoundingClientRect();
+  const img = itemEl.querySelector("img");
+  const layer = document.getElementById("fly-layer");
+  const flyer = document.createElement("div");
+  flyer.className = "fly-item spawn-arc";
+  flyer.innerHTML = img ? img.outerHTML : "";
+  flyer.style.left = a.left + a.width / 2 - b.width / 2 + "px";
+  flyer.style.top = a.top + a.height / 2 - b.height / 2 + "px";
+  flyer.style.width = b.width + "px";
+  flyer.style.height = b.height + "px";
+  flyer.style.transition = "none";
+  layer.appendChild(flyer);
+  itemEl.style.visibility = "hidden";
+  const dx = b.left - (a.left + a.width / 2 - b.width / 2);
+  const dy = b.top - (a.top + a.height / 2 - b.height / 2);
+  flyer.animate(
+    [
+      { transform: "translate(0,0) scale(0.55)", opacity: 0.95 },
+      { transform: `translate(${dx * 0.45}px, ${dy * 0.45 - 42}px) scale(1.08)`, opacity: 1, offset: 0.55 },
+      { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 1 },
+    ],
+    { duration: 420, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" }
+  );
+  setTimeout(() => {
+    flyer.remove();
+    itemEl.style.visibility = "";
+    itemEl.classList.add("merging");
+  }, 420);
+}
+
+function flyReward(fromEl, toSel, text) {
+  return new Promise((resolve) => {
+    const to = document.querySelector(toSel);
+    const layer = document.getElementById("fly-layer");
+    if (!fromEl || !to || !layer) {
+      resolve();
+      return;
+    }
+    const a = fromEl.getBoundingClientRect();
+    const b = to.getBoundingClientRect();
+    const flyer = document.createElement("div");
+    flyer.className = "fly-item fly-reward";
+    flyer.textContent = text;
+    const sx = a.left + a.width / 2 - 18;
+    const sy = a.top + 6;
+    flyer.style.left = sx + "px";
+    flyer.style.top = sy + "px";
+    layer.appendChild(flyer);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        flyer.style.transform = `translate(${b.left + b.width / 2 - sx - 18}px, ${b.top + b.height / 2 - sy - 12}px) scale(0.55)`;
+        flyer.style.opacity = "0.15";
+      });
+    });
+    setTimeout(() => {
+      flyer.remove();
+      resolve();
+    }, 460);
+  });
 }
 
 function tapGenerator(genId) {
@@ -1306,24 +1445,35 @@ function tapGenerator(genId) {
     showToast(state.boostOn ? "渦輪要 2⚡！能量唔夠" : "能量唔夠！等再生或者撳 ⊕");
     return;
   }
-  if (!emptyCells().length) {
+  if (emptyCells().length <= targetEmptyFloor()) {
     ensureBoardSpace({ reason: "spawn", announce: false });
-    if (!emptyCells().length) {
-      applyMergeHints();
-      showToast("棋盤塞爆啦！合併／交單騰位，或者撳📦停車場清位。");
-      renderBoard();
-      renderDock();
-      return;
-    }
-    // Soft-pack freed a slot — continue spawn without flooding extra gens
+  }
+  if (!emptyCells().length) {
+    applyMergeHints();
+    showToast("棋盤塞爆啦！合併／交單騰位，或者撳📦停車場清位。");
+    renderBoard();
+    renderDock();
+    return;
   }
   state.energy -= cost;
+  bounceChip(".chip.energy");
   const level = spawnLevelFor(gen);
-  placeItem(level);
+  const fromIdx = generatorIndex(gen.id);
+  const idx = placeItem(level);
+  if (idx < 0) {
+    state.energy += cost;
+    return;
+  }
+  const spawnedUid = state.board[idx].uid;
+  if (emptyCells().length < targetEmptyFloor()) {
+    ensureBoardSpace({ reason: "spawn", announce: false });
+  }
+  const landed = state.board.findIndex((c) => c && c.uid === spawnedUid);
   const v = vehicle(level);
   if (state.boostOn) showToast(`${gen.name}（渦輪）→ ${v.emoji} ${v.name}`);
   else showToast(`${gen.name} → ${v.emoji} ${v.name}`);
   render();
+  if (landed >= 0) animateSpawnArc(fromIdx, landed, gen.id);
 }
 
 function toggleBoost() {
@@ -1340,7 +1490,7 @@ function formatRegen(msLeft) {
   const totalSec = Math.max(0, Math.ceil(msLeft / 1000));
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 function tickEnergy() {
@@ -1478,6 +1628,7 @@ function renderDock() {
     html += `
       <button type="button" class="dock-btn gen gen-${gen.id}" data-gen="${gen.id}" title="${gen.name}" ${disabled}>
         ${artImg(gen.icon, gen.iconFallback, "🔧", 'class="dock-ico" width="36" height="36"')}
+        ${tileBadge("bolt")}
         <span class="cost-pill">⚡${cost}</span>
         <span class="dock-label">${gen.name}</span>
       </button>
@@ -1536,7 +1687,11 @@ function renderOrders() {
 
     const cust = document.createElement("div");
     cust.className =
-      "customer" + (ready ? " ready" : "") + (almost ? " almost" : "") + (bonus ? " has-bonus" : "");
+      "customer" +
+      (ready ? " ready" : "") +
+      (almost ? " almost" : "") +
+      (bonus ? " has-bonus" : "") +
+      (state.ordersEntering ? " entering" : "");
     cust.dataset.inst = order._inst;
     cust.title =
       order.title +
@@ -1567,9 +1722,10 @@ function renderOrders() {
 
     cust.innerHTML = `
       ${bonusHtml}
-      <div class="customer-face">${artImg(face, order._faceFallback || "", "🙂")}</div>
+      <div class="customer-face">${artImg(face, order._faceFallback || "", "🙂")}${
+        ready ? `<span class="bubble-ready-check" aria-hidden="true">✓</span>` : ""
+      }</div>
       <div class="bubble">
-        <span class="bubble-ready-check" aria-hidden="true">✓</span>
         <span class="customer-diff ${order.difficulty}">${diffLabel[order.difficulty]}</span>
         <div class="order-rewards">
           <span class="reward-chip coin"><span class="reward-ico" aria-hidden="true"></span><span class="reward-num">+${reward}</span></span>
@@ -1656,6 +1812,14 @@ function updateDetailFromSelection() {
     );
     return;
   }
+  if (isBuriedCell(cell)) {
+    const v = vehicle(cell.level);
+    expandDetail(
+      cell.level,
+      `<strong>${v.name}</strong>（Lv${cell.level}）<br/>沙堆／蛛網鎖住。拖一隻相同載具埋上去揭開。`
+    );
+    return;
+  }
   const item = cell;
   const v = vehicle(item.level);
   const next = item.level < CHAIN.length ? vehicle(item.level + 1) : null;
@@ -1687,20 +1851,32 @@ function renderBoard() {
       el.dataset.index = String(i);
       el.dataset.gen = gen.id;
       el.title = `${gen.name}（撳一下產出）`;
-      el.innerHTML = `${artImg(gen.icon, gen.iconFallback, "🔧", `class="ico" alt="${gen.name}"`)}<span class="lv gen-lv">${gen.name}</span>`;
+      el.innerHTML = `${artImg(gen.icon, gen.iconFallback, "🔧", `class="ico" alt="${gen.name}"`)}${tileBadge("bolt")}<span class="lv gen-lv">${gen.name}</span>`;
+      cell.appendChild(el);
+    } else if (isBuriedCell(item)) {
+      const v = vehicle(item.level);
+      cell.classList.add("buried");
+      const el = document.createElement("div");
+      el.className = "item buried-item lv-" + item.level;
+      el.dataset.index = String(i);
+      el.title = `${v.name}（沙堆）`;
+      el.innerHTML = `${artImg(v.icon, v.iconFallback, v.emoji, `class="ico" alt="${v.name}"`)}<span class="sand-cap" aria-hidden="true"></span>`;
       cell.appendChild(el);
     } else if (isItemCell(item)) {
       const v = vehicle(item.level);
       const el = document.createElement("div");
+      const badges = [];
+      if (needed.has(item.level)) badges.push(tileBadge("check"));
+      if (item.level >= CHAIN.length) badges.push(tileBadge("crown"));
       el.className =
         "item lv-" +
         item.level +
         (needed.has(item.level) ? " needed" : "") +
+        (item.level >= CHAIN.length ? " max-tier" : "") +
         (state.mergeHints.has(i) ? " merge-hint" : "");
-      el.draggable = true;
       el.dataset.index = String(i);
       el.title = `${v.name} (Lv${item.level})`;
-      el.innerHTML = `${artImg(v.icon, v.iconFallback, v.emoji, `class="ico" alt="${v.name}"`)}<span class="lv">Lv${item.level}</span>`;
+      el.innerHTML = `${artImg(v.icon, v.iconFallback, v.emoji, `class="ico" alt="${v.name}"`)}${badges.join("")}<span class="lv">Lv${item.level}</span>`;
       cell.appendChild(el);
     }
     boardEl.appendChild(cell);
@@ -1709,45 +1885,119 @@ function renderBoard() {
   updateDetailFromSelection();
 }
 
-function wireBoardEvents(boardEl) {
-  boardEl.querySelectorAll(".item:not(.generator-tile)").forEach((el) => {
-    el.addEventListener("dragstart", (e) => {
-      const dragFrom = Number(el.dataset.index);
-      e.dataTransfer.setData("text/plain", String(dragFrom));
-      e.dataTransfer.effectAllowed = "move";
-      state.selectedIndex = null;
-    });
-    el.addEventListener("dragend", () => {
-      boardEl.querySelectorAll(".cell").forEach((c) => c.classList.remove("drag-over"));
+function finishDrop(result, toIdx) {
+  if (!result) return false;
+  state.selectedIndex = null;
+  render();
+  if (result === "merge" || result === "reveal") flashMerge(toIdx, result);
+  return true;
+}
+
+function cellFromPoint(x, y) {
+  const el = document.elementFromPoint(x, y);
+  return el && el.closest ? el.closest(".cell") : null;
+}
+
+function clearDropMarks() {
+  document.querySelectorAll(".cell.merge-target").forEach((c) => c.classList.remove("merge-target"));
+}
+
+function canDropOn(from, to) {
+  if (from === to || Number.isNaN(to)) return false;
+  const a = state.board[from];
+  const b = state.board[to];
+  if (!isItemCell(a) || isGeneratorCell(b)) return false;
+  if (!b) return true;
+  if (isBuriedCell(b) || isItemCell(b)) return a.level === b.level && a.level < CHAIN.length;
+  return false;
+}
+
+function wirePointerDrag(boardEl) {
+  boardEl.querySelectorAll(".item:not(.generator-tile):not(.buried-item)").forEach((el) => {
+    el.addEventListener("pointerdown", (e) => {
+      if (e.button != null && e.button !== 0) return;
+      if (state.claiming) return;
+      const from = Number(el.dataset.index);
+      if (!isItemCell(state.board[from])) return;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const origin = el.getBoundingClientRect();
+      let ghost = null;
+      let moved = false;
+
+      function placeGhost(clientX, clientY) {
+        ghost.style.left = clientX - origin.width / 2 + "px";
+        ghost.style.top = clientY - origin.height / 2 + "px";
+      }
+
+      function onMove(ev) {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (!moved && dx * dx + dy * dy < 36) return;
+        if (!moved) {
+          moved = true;
+          try {
+            el.setPointerCapture(ev.pointerId);
+          } catch (err) {
+            /* capture can fail if the pointer already ended */
+          }
+          ghost = document.createElement("div");
+          ghost.className = "drag-ghost";
+          ghost.innerHTML = el.innerHTML;
+          ghost.style.width = origin.width + "px";
+          ghost.style.height = origin.height + "px";
+          document.getElementById("fly-layer").appendChild(ghost);
+          el.classList.add("drag-source");
+        }
+        placeGhost(ev.clientX, ev.clientY);
+        clearDropMarks();
+        const target = cellFromPoint(ev.clientX, ev.clientY);
+        const to = target ? Number(target.dataset.index) : NaN;
+        if (canDropOn(from, to)) target.classList.add("merge-target");
+      }
+
+      function onUp(ev) {
+        el.removeEventListener("pointermove", onMove);
+        el.removeEventListener("pointerup", onUp);
+        el.removeEventListener("pointercancel", onUp);
+        clearDropMarks();
+        el.classList.remove("drag-source");
+        if (!moved || !ghost) return;
+        state.suppressClick = true;
+        setTimeout(() => {
+          state.suppressClick = false;
+        }, 0);
+        const target = cellFromPoint(ev.clientX, ev.clientY);
+        const to = target ? Number(target.dataset.index) : NaN;
+        const result = canDropOn(from, to) ? tryMerge(from, to) : false;
+        if (result) {
+          ghost.remove();
+          finishDrop(result, to);
+        } else {
+          AudioFX.thud();
+          ghost.classList.add("snap");
+          ghost.style.left = origin.left + "px";
+          ghost.style.top = origin.top + "px";
+          ghost.style.opacity = "0";
+          setTimeout(() => ghost.remove(), 220);
+        }
+      }
+
+      el.addEventListener("pointermove", onMove);
+      el.addEventListener("pointerup", onUp);
+      el.addEventListener("pointercancel", onUp);
     });
   });
+}
 
+function wireBoardEvents(boardEl) {
   boardEl.querySelectorAll(".cell").forEach((cell) => {
     const idx = Number(cell.dataset.index);
-    cell.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      if (isGeneratorCell(state.board[idx])) return;
-      cell.classList.add("drag-over");
-    });
-    cell.addEventListener("dragleave", () => cell.classList.remove("drag-over"));
-    cell.addEventListener("drop", (e) => {
-      e.preventDefault();
-      cell.classList.remove("drag-over");
-      if (isGeneratorCell(state.board[idx])) return;
-      const from = Number(e.dataTransfer.getData("text/plain"));
-      if (Number.isNaN(from)) return;
-      if (tryMerge(from, idx)) {
-        state.selectedIndex = null;
-        render();
-        flashMerge(idx);
-      }
-    });
 
     cell.addEventListener("click", () => {
-      if (state.claiming) return;
+      if (state.claiming || state.suppressClick) return;
       const boardCell = state.board[idx];
 
-      // Tap generator on board
       if (isGeneratorCell(boardCell)) {
         state.selectedIndex = idx;
         renderBoard();
@@ -1757,18 +2007,13 @@ function wireBoardEvents(boardEl) {
 
       if (!boardCell) {
         if (state.selectedIndex != null && isItemCell(state.board[state.selectedIndex])) {
-          if (tryMerge(state.selectedIndex, idx)) {
-            state.selectedIndex = null;
-            render();
-            flashMerge(idx);
-            return;
-          }
+          if (finishDrop(tryMerge(state.selectedIndex, idx), idx)) return;
         }
         state.selectedIndex = null;
         renderBoard();
         return;
       }
-      if (state.selectedIndex == null) {
+      if (state.selectedIndex == null || isBuriedCell(state.board[state.selectedIndex])) {
         state.selectedIndex = idx;
         renderBoard();
         return;
@@ -1778,27 +2023,39 @@ function wireBoardEvents(boardEl) {
         renderBoard();
         return;
       }
-      if (tryMerge(state.selectedIndex, idx)) {
-        state.selectedIndex = null;
-        render();
-        flashMerge(idx);
-      } else {
+      if (!finishDrop(tryMerge(state.selectedIndex, idx), idx)) {
         state.selectedIndex = idx;
         renderBoard();
       }
     });
   });
+  wirePointerDrag(boardEl);
 }
 
-function flashMerge(idx) {
+function flashMerge(idx, kind) {
   requestAnimationFrame(() => {
-    const el = document.querySelector(`.cell[data-index="${idx}"] .item`);
+    const cell = document.querySelector(`.cell[data-index="${idx}"]`);
+    const el = cell && cell.querySelector(".item");
+    const board = document.getElementById("board");
+    if (board) {
+      board.classList.remove("nudge");
+      void board.offsetWidth;
+      board.classList.add("nudge");
+    }
     if (el) {
-      el.classList.add("merging");
+      el.classList.add(kind === "reveal" ? "revealing" : "merging");
+      if (kind === "reveal") {
+        const puff = document.createElement("span");
+        puff.className = "sand-puff";
+        el.appendChild(puff);
+      }
       burstAtElement(el, {
-        count: 14,
-        colors: ["#ffe082", "#ffcc80", "#81d4fa", "#ffffff", "#a5d6a7"],
-        spread: 56,
+        count: kind === "reveal" ? 16 : 12,
+        colors:
+          kind === "reveal"
+            ? ["#f6e7c4", "#e7cf9e", "#fff8e1", "#ffe082", "#ffffff"]
+            : ["#ffe082", "#ffcc80", "#81d4fa", "#ffffff", "#a5d6a7"],
+        spread: 52,
       });
     }
   });
@@ -1911,7 +2168,10 @@ function initBoard() {
   const total = CONFIG.COLS * CONFIG.ROWS;
   state.board = Array(total).fill(null);
   state.placedGenerators.clear();
-  // Place starting items first (avoid generator slots)
+  for (const bury of BURIED_PLAN) {
+    if (bury.index < 0 || bury.index >= total) continue;
+    state.board[bury.index] = { level: bury.level, buried: true, uid: state.nextUid++ };
+  }
   const reserved = new Set(GENERATORS.filter((g) => g.unlockLandmark === 0).map((g) => g.boardSlot));
   for (const s of CONFIG.START_ITEMS) {
     const empties = [];
